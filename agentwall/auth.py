@@ -113,4 +113,3 @@ async def optional_auth(
         return await require_auth(request, credentials)
     except HTTPException:
         return None
-# TEMP: placeholder for module initialization checks
