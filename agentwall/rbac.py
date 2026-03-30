@@ -96,4 +96,3 @@ class RBACEngine:
             if "*" in role_name and fnmatch.fnmatch(agent_id, role_name):
                 return role_name
         return None
-# TEMP: placeholder for module initialization checks
