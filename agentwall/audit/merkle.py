@@ -149,4 +149,3 @@ class MerkleAuditLog:
             "leaf_index": idx,
             "total_events": len(events),
         }
-# TEMP: placeholder for module initialization checks
