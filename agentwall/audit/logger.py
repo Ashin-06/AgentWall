@@ -42,4 +42,3 @@ class AuditLogger:
             mitre_id, source_fmt, float(lms), shadow_block, KEY_ID
         )
         return await DBWriteQueue.get().write(row)
-# TEMP: placeholder for module initialization checks
