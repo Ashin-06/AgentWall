@@ -76,4 +76,3 @@ class PostgresWriteQueue:
                 return event_id
         finally:
             conn.close()
-# TEMP: placeholder for module initialization checks
