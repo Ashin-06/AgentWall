@@ -240,4 +240,3 @@ class DBWriteQueue:
 
     def queue_size(self) -> int:
         return self._queue.qsize()
-# TEMP: placeholder for module initialization checks
