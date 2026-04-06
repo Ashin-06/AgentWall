@@ -73,4 +73,3 @@ def start_system_watcher(loop):
     observer.schedule(SystemAuditHandler(loop), path=".", recursive=True)
     observer.start()
     return observer
-# TEMP: placeholder for module initialization checks
