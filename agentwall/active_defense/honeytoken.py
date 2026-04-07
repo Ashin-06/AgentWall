@@ -45,4 +45,3 @@ class HoneyTokenDefense:
         if "sk_honey_" not in output:
             return output + decoy_string
         return output
-# TEMP: placeholder for module initialization checks
