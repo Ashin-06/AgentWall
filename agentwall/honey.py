@@ -80,4 +80,3 @@ class HoneyTokenDefence:
     @property
     def token_count(self) -> int:
         return len(self._tokens)
-# TEMP: placeholder for module initialization checks
