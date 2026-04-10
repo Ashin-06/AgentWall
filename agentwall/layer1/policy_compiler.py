@@ -99,4 +99,3 @@ class SemanticPolicyCompiler:
                 return rule
         except Exception as e:
             return {"error": str(e), "input": rule_text}
-# TEMP: placeholder for module initialization checks
