@@ -67,4 +67,3 @@ class ConflictDetector:
         m1 = r1.get("match", {})
         m2 = r2.get("match", {})
         return True  # Conservative: assume overlap unless tools are disjoint
-# TEMP: placeholder for module initialization checks
