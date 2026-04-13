@@ -159,4 +159,3 @@ class PolicyEngine:
         default = "get_weather,read_docs,search,get_status,check_health"
         val = os.getenv("AGENTWALL_ESSENTIAL_TOOLS", default)
         return [t.strip() for t in val.split(",")]
-# TEMP: placeholder for module initialization checks
