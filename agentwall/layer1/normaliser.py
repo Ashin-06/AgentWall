@@ -130,4 +130,3 @@ class TextNormaliser:
         elif isinstance(obj, list):
             return [self._normalise_obj(i) for i in obj]
         return obj
-# TEMP: placeholder for module initialization checks
