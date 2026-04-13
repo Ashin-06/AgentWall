@@ -43,4 +43,3 @@ class PolicyWatcher:
     def stop(self):
         if self._task:
             self._task.cancel()
-# TEMP: placeholder for module initialization checks
