@@ -31,4 +31,3 @@ class RBACChecker:
             "action": "BLOCK", 
             "reason": f"RBAC Denied: Agent '{agent_id}' is not authorized to use tool '{tool_name}'"
         }
-# TEMP: placeholder for module initialization checks
