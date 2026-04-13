@@ -107,4 +107,3 @@ class RateLimiter:
             state.cb_failures = 0
 
         return {"blocked": False}
-# TEMP: placeholder for module initialization checks
