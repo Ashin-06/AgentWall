@@ -100,4 +100,3 @@ class TrustGraph:
             }
             
         return {"action": "PERMIT", "chain": chain, "min_trust": min_trust}
-# TEMP: placeholder for module initialization checks
