@@ -209,4 +209,3 @@ class CausalGraphDetector:
                           for u, v, d in G.edges(data=True)],
             }
         return result
-# TEMP: placeholder for module initialization checks
