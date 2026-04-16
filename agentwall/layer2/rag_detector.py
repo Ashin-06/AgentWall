@@ -99,4 +99,3 @@ class RAGPoisoningDetector:
             "location": list(set(location)),
             "is_rag_write": tool in RAG_WRITE_TOOLS,
         }
-# TEMP: placeholder for module initialization checks
