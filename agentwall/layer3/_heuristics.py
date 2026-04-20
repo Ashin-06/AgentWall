@@ -97,4 +97,3 @@ def heuristic_score(text: str, goal: str = "") -> tuple[float, list[str]]:
         matched.append("high_entropy_obfuscation")
 
     return round(min(1.0, score), 3), matched
-# TEMP: placeholder for module initialization checks
