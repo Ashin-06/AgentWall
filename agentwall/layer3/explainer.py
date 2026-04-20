@@ -72,4 +72,3 @@ class ExplainabilityEngine:
             "encoded_injection":    "Injection was encoded to bypass keyword filters. Review normaliser coverage.",
         }
         return notes.get(attack_type, f"Detected as {mitre_name}. Review call context.")
-# TEMP: placeholder for module initialization checks
