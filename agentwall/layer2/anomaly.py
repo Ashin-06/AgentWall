@@ -178,4 +178,3 @@ class TemporalAnomalyDetector:
             agent_id = path.stem.replace("_ensemble", "")
             try: self._models[agent_id] = joblib.load(path)
             except: pass
-# TEMP: placeholder for module initialization checks
