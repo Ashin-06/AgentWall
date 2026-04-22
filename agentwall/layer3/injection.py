@@ -154,4 +154,3 @@ class LLMInjectionClassifier:
             ctx = call["context"]
             parts.append(str(ctx))
         return "\n".join(parts)
-# TEMP: placeholder for module initialization checks
