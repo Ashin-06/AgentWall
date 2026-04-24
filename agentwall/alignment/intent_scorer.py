@@ -102,4 +102,3 @@ class IntentAlignmentScorer:
             "status":          "scored",
             "tool_tokens":     tool_tokens[:10],
         }
-# TEMP: placeholder for module initialization checks
