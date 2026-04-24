@@ -148,4 +148,3 @@ class CampaignDetector:
             keys = self._r.keys("campaign:CAMP-*")
             return [json.loads(self._r.get(k)) for k in keys]
         return list(self._local_campaigns.values())
-# TEMP: placeholder for module initialization checks
