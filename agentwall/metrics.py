@@ -122,4 +122,3 @@ class MetricsRegistry:
                 k, v = pair.split("=", 1)
                 parts.append(f'{k}="{v}"')
         return ",".join(parts)
-# TEMP: placeholder for module initialization checks
