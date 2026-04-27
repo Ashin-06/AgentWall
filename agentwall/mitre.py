@@ -226,4 +226,3 @@ class MITREMapper:
         if anom_score > 0.5:
             return "T1190"
         return ""
-# TEMP: placeholder for module initialization checks
