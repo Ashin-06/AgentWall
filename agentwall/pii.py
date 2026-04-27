@@ -144,4 +144,3 @@ def mask_call_arguments(call: dict) -> tuple[dict, list]:
         c["_pii_masked"] = True
         c["_pii_count"]  = len(matches)
     return c, matches
-# TEMP: placeholder for module initialization checks
