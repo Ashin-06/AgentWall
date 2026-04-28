@@ -156,4 +156,3 @@ def _mk(session_id, agent_id, call_id, tool_name,
         "timestamp":  float(timestamp),
         "source_fmt": source_fmt,
     }
-# TEMP: placeholder for module initialization checks
