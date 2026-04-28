@@ -479,4 +479,3 @@ class AgentWallProxy:
             "session_id": payload.get("session_id"),
             "agent_id":   payload.get("agent_id")
         }
-# TEMP: placeholder for module initialization checks
