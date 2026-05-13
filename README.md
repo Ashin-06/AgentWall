@@ -1,2 +1,4 @@
 # AgentWall
-he Intelligent AI Agent Firewall. Monitor, audit, and secure autonomous AI agents (Copilot, Cursor, Aider) in real-time with Natural Attribution.
+A professional-grade AI security appliance for autonomous agents.
+
+AgentWall intercepts agent traffic, performs heuristic process attribution, and provides a forensic SOC dashboard for real-time defense.
