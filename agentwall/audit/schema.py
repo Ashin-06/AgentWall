@@ -55,8 +55,8 @@ def _conn():
     if "network_monitor" in db_path or "sqlite:" in db_path:
         db_path = "agentwall.duckdb"
     
-    # Ensure path is absolute for Windows stability
-    if not os.path.isabs(db_path):
+    # Ensure path is absolute for Windows stability (unless in-memory)
+    if db_path != ":memory:" and not os.path.isabs(db_path):
         db_path = os.path.join(os.getcwd(), db_path)
         
     return duckdb.connect(db_path)
