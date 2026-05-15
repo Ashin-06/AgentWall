@@ -20,13 +20,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r "Agent Wall/requirements.txt"
+        pip install -r requirements.txt
         
     - name: Smoke Test (Server Startup)
       run: |
         # Try to start the server for 5 seconds to ensure no immediate crashes
-        timeout 10s python -m uvicorn agentwall.main:app --app-dir "Agent Wall" --host 127.0.0.1 --port 8080 || code=$?; if [ $code -ne 124 ]; then exit $code; fi
+        timeout 10s python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8080 || code=$?; if [ $code -ne 124 ]; then exit $code; fi
 
     - name: Docker Build Test
       run: |
-        docker build -t agentwall-test "Agent Wall/"
+        docker build -t agentwall-test .
