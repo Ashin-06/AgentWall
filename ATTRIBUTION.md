@@ -1,5 +1,8 @@
 # ATTRIBUTION.md — Natural Attribution Engine: Formal Specification
 
+> **Evaluation Scope Notice**
+> The `evals/attribution_accuracy.py` experiment validates the **MSA algorithm logic** using a deterministic simulation (`AttributionOracle` class). It does **not** invoke `psutil`, does **not** scan real OS processes, and does **not** measure live filesystem event timing. Real-world `psutil.process_iter()` performance depends on the number of running processes and OS permission level. This distinction is documented explicitly in every table and section below.
+
 ## Overview
 
 The Natural Attribution Engine (NAE) is the core research contribution of AgentWall. It solves the attribution problem: *given an observed file-system modification at time T, which of the N currently active AI agent processes caused it?* — without requiring TLS interception, agent-side instrumentation, or OS kernel hooks.
