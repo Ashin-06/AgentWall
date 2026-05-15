@@ -136,11 +136,8 @@ async def login(req: LoginRequest):
 
 @app.post("/intercept")
 async def intercept(request: Request, body: InterceptRequest):
-    proxy = app.state.proxy.raw_proxy
-    res = await proxy.intercept(
-        body.session_id, body.agent_id, body.call_id,
-        body.tool_name, body.arguments, body.source_fmt
-    )
+    # Route through ShadowMode wrapper which handles the evaluation
+    res = await app.state.proxy.observe(body.dict())
     return res
 
 @app.get("/api/sessions")

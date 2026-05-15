@@ -99,7 +99,24 @@ class MetricsRegistry:
         return time.time() - self._start_time
 
     def render(self) -> str:
-        # ... existing code ...
+        lines = []
+        for name, counters in self._counters.items():
+            for key, val in counters.items():
+                labels = self._format_labels(key)
+                if labels:
+                    lines.append(f"{name}{{{labels}}} {val}")
+                else:
+                    lines.append(f"{name} {val}")
+        for key, val in self._gauges.items():
+            if "#" in key:
+                name, lkey = key.split("#", 1)
+                labels = self._format_labels(lkey)
+                if labels:
+                    lines.append(f"{name}{{{labels}}} {val}")
+                else:
+                    lines.append(f"{name} {val}")
+            else:
+                lines.append(f"{key} {val}")
         return "\n".join(lines) + "\n"
 
     def export(self) -> str:
