@@ -9,6 +9,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
     - uses: actions/checkout@v4
     
@@ -51,8 +53,18 @@ jobs:
         else
           echo "Server crashed on startup! Logs:"
           cat server_log.txt
+          
+          # Push logs to a new branch so we can read them without logging into GitHub
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git checkout -b ci-error-logs
+          git add server_log.txt
+          git commit -m "chore: save CI failure logs"
+          git push origin ci-error-logs --force
+          
           exit 1
         fi
+
 
     - name: Docker Build Test
       run: |
