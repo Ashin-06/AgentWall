@@ -39,8 +39,9 @@ class ConflictDetector:
                     "message": f"Rule '{r1.get('name')}' shadows '{r2.get('name')}' — "
                                f"rule {j} may never fire",
                 }
-        # Same tool, opposite actions — contradiction
-        elif {a1,a2} == {"BLOCK","PERMIT"} or {a1,a2} == {"BLOCK","AUDIT"}:
+        # Same tool, opposite enforcement actions — contradiction
+        # AUDIT is observability-only and can intentionally overlap with BLOCK.
+        elif {a1,a2} == {"BLOCK","PERMIT"}:
             if self._overlapping(r1, r2):
                 return {
                     "type":    "contradiction",
@@ -53,6 +54,13 @@ class ConflictDetector:
 
     def _subsumes(self, r1: dict, r2: dict) -> bool:
         """True if r1's conditions are a superset of r2's (r1 always fires first)."""
+        t1, t2 = r1.get("tool", "*"), r2.get("tool", "*")
+        # r1 can only shadow r2 if r1 covers every tool r2 can match.
+        if t1 != "*" and t2 == "*":
+            return False
+        if t1 != "*" and t2 != "*" and t1 != t2:
+            return False
+
         m1 = r1.get("match", {})
         m2 = r2.get("match", {})
         # r1 subsumes r2 if r1 has no matchers (wildcard) and r2 does
