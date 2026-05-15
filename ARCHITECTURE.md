@@ -6,7 +6,7 @@ AgentWall provides process attribution and traffic monitoring for AI agents. It 
 
 ## 1. Natural Attribution Engine (NAE)
 
-The core research contribution of AgentWall. The NAE solves the attribution problem — *given a file-system modification at time T, which of N active AI agent processes caused it?* — without requiring TLS interception, which would break most IDE integrations.
+The core technical contribution of AgentWall. The NAE solves the attribution problem — *given a file-system modification at time T, which of N active AI agent processes caused it?* — without requiring TLS interception, which would break most IDE integrations.
 
 ### Multi-Signal Attribution (MSA) Algorithm
 
