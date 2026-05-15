@@ -14,22 +14,16 @@
 
 ---
 
-## 🔬 Research Context
+## Features
 
-> **MTech Research Project** — *AI Safety & Security*
->
-> **Core problem**: As autonomous agents (Copilot, Cursor, Aider) are granted greater access to filesystems, databases, and APIs, the security community lacks tools to monitor, attribute, and control their actions. AgentWall proposes a network-layer firewall approach specifically designed for this threat model.
-
----
-
-## ✨ Novel Contributions
-
-| # | Contribution | What Makes It Novel |
-|---|---|---|
-| 1 | **Natural Attribution Engine (NAE)** | Identifies which AI agent modified a file using OS process monitoring — no TLS interception, no agent modification required |
-| 2 | **HMAC-Chained Audit Logs** | Every log entry is cryptographically linked to the previous, creating a tamper-evident forensic chain |
-| 3 | **Honeytoken Active Defense** | Fake credentials injected into agent context — any use is a zero-false-positive confirmed attack signal |
-| 4 | **MITRE ATT&CK Mapping for AI Agents** | Autonomous agent behaviors automatically mapped to ATT&CK techniques — unexplored in prior work |
+| Component | Description |
+|---|---|
+| **Natural Attribution Engine (NAE)** | Uses `psutil` process monitoring and `watchdog` filesystem events to identify which AI agent modified a file. No TLS interception or agent-side modification required. |
+| **HMAC-Chained Audit Logs** | Each log entry is cryptographically linked to the previous via HMAC-SHA256. Any modification to a past record breaks the chain. |
+| **Honeytoken Active Defense** | Fake credentials are placed in the agent's context. If an agent uses them in a tool call, the event is flagged as a confirmed exfiltration attempt. |
+| **MITRE ATT&CK Mapping** | Tool calls that match policy rules are tagged with the corresponding MITRE ATT&CK technique ID. |
+| **Multi-Layer Detection Pipeline** | Four detection layers: deterministic policy rules, anomaly scoring (Isolation Forest), semantic injection detection, and cross-session campaign correlation. |
+| **SOC Dashboard** | A React interface that displays live sessions, blocked calls, MITRE heatmaps, and session replay. |
 
 ---
 
@@ -138,19 +132,9 @@ Full STRIDE threat model in [THREAT_MODEL.md](THREAT_MODEL.md).
 
 ---
 
-## 🆚 Comparison to Related Work
+## 🆚 Related Work
 
-See [COMPARISON.md](COMPARISON.md) for the full structured comparison.
-
-| | AgentWall | LiteLLM | Guardrails-AI |
-|---|---|---|---|
-| OS-level process attribution | ✅ | ❌ | ❌ |
-| Tamper-evident audit log | ✅ | ❌ | ❌ |
-| Honeytoken active defense | ✅ | ❌ | ❌ |
-| MITRE ATT&CK mapping | ✅ | ❌ | ❌ |
-| Policy enforcement on tool calls | ✅ | ❌ | ⚠️ output only |
-| Multi-agent trust graph | ✅ | ❌ | ❌ |
-| Zero-config (no agent modification) | ✅ | ❌ | ❌ |
+A structured comparison against LiteLLM, Guardrails-AI, and OWASP LLM Top 10 mitigations is in [COMPARISON.md](COMPARISON.md).
 
 ---
 
@@ -218,6 +202,6 @@ python -m pytest tests/ -v
 
 <div align="center">
 
-**License: MIT** &nbsp;|&nbsp; Built as part of an MTech research project in AI Security
+**License: MIT**
 
 </div>
