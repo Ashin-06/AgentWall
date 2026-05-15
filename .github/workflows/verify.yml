@@ -27,7 +27,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Run Security Test Suite
+    - name: Run Security Test Suite (Unit Tests)
       env:
         AGENTWALL_DB: ":memory:"
         AGENTWALL_ADMIN_PASSWORD: test_admin
@@ -35,6 +35,15 @@ jobs:
         PYTHONPATH: .
       run: |
         python -m pytest tests/
+        
+    - name: Run Evals Benchmarking (TPR/FPR)
+      env:
+        AGENTWALL_DB: ":memory:"
+        AGENTWALL_ADMIN_PASSWORD: test_evals
+        AGENTWALL_AUTH_ENABLED: "0"
+        PYTHONPATH: .
+      run: |
+        python evals/run_benchmarks.py
         
     - name: Smoke Test (Server Startup)
       env:
