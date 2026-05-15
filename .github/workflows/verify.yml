@@ -22,11 +22,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
+    - name: Debug Directory Structure
+      run: ls -R
+
     - name: Smoke Test (Server Startup)
       env:
         AGENTWALL_ADMIN_PASSWORD: admin
         AGENTWALL_AUTH_ENABLED: "0"
         AGENTWALL_DB: ":memory:"
+        PYTHONPATH: .
       run: |
         # Start server in background and capture output
         python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8080 > server_log.txt 2>&1 &
