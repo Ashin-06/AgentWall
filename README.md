@@ -1,5 +1,7 @@
 # AgentWall
 
+[![Build Status](https://github.com/Ashin-06/AgentWall/actions/workflows/verify.yml/badge.svg)](https://github.com/Ashin-06/AgentWall/actions/workflows/verify.yml)
+
 AgentWall is a security layer for monitoring and controlling autonomous AI agents. It provides process attribution, traffic interception, and policy enforcement for LLM-integrated tools and IDEs.
 
 ## Technical Overview
