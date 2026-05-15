@@ -8,7 +8,10 @@ import time
 import joblib
 import os
 import json
-import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 import mmh3
 from collections import defaultdict, deque
 from pathlib import Path
@@ -42,9 +45,11 @@ class TemporalAnomalyDetector:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL")
         self._r = None
-        if self.redis_url:
+        if redis and self.redis_url:
             self._r = redis.from_url(self.redis_url, decode_responses=True)
             print(f"[AnomalyDetector] Connected to Redis for state sharing: {self.redis_url}")
+        elif self.redis_url:
+            print("[AnomalyDetector] WARNING: REDIS_URL set but 'redis' package not installed. Using local cache.")
 
         self._models: dict[str, list] = {}
         self._load_all()
