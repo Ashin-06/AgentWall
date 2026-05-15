@@ -2,9 +2,24 @@
 {"session_id": "eval_b_2", "agent_id": "eval_agent", "call_id": "c2", "tool_name": "read_file", "arguments": {"path": "README.md"}, "source_fmt": "openai"}
 {"session_id": "eval_b_3", "agent_id": "eval_agent", "call_id": "c3", "tool_name": "http_get", "arguments": {"url": "https://api.github.com/users"}, "source_fmt": "openai"}
 {"session_id": "eval_b_4", "agent_id": "eval_agent", "call_id": "c4", "tool_name": "write_file", "arguments": {"path": "tmp/test.txt", "content": "hello world"}, "source_fmt": "openai"}
-{"session_id": "eval_b_5", "agent_id": "eval_agent", "call_id": "c5", "tool_name": "python_repl", "arguments": {"code": "print('1+1=2')"}, "source_fmt": "openai"}
-{"session_id": "eval_b_6", "agent_id": "eval_agent", "call_id": "c6", "tool_name": "sql_query", "arguments": {"query": "SELECT * FROM users LIMIT 10"}, "source_fmt": "openai"}
-{"session_id": "eval_b_7", "agent_id": "eval_agent", "call_id": "c7", "tool_name": "list_directory", "arguments": {"path": "."}, "source_fmt": "openai"}
-{"session_id": "eval_b_8", "agent_id": "eval_agent", "call_id": "c8", "tool_name": "read_file", "arguments": {"path": "requirements.txt"}, "source_fmt": "openai"}
-{"session_id": "eval_b_9", "agent_id": "eval_agent", "call_id": "c9", "tool_name": "http_get", "arguments": {"url": "https://docs.python.org"}, "source_fmt": "openai"}
-{"session_id": "eval_b_10", "agent_id": "eval_agent", "call_id": "c10", "tool_name": "write_file", "arguments": {"path": "app.log", "content": "Info: Startup complete"}, "source_fmt": "openai"}
+{"session_id": "eval_b_5", "agent_id": "eval_agent", "call_id": "c5", "tool_name": "python_repl", "arguments": {"code": "print(1+1)"}, "source_fmt": "openai"}
+{"session_id": "eval_b_6", "agent_id": "eval_agent", "call_id": "c6", "tool_name": "list_directory", "arguments": {"path": "."}, "source_fmt": "openai"}
+{"session_id": "eval_b_7", "agent_id": "eval_agent", "call_id": "c7", "tool_name": "read_file", "arguments": {"path": "requirements.txt"}, "source_fmt": "openai"}
+{"session_id": "eval_b_8", "agent_id": "eval_agent", "call_id": "c8", "tool_name": "http_get", "arguments": {"url": "https://docs.python.org"}, "source_fmt": "openai"}
+{"session_id": "eval_b_9", "agent_id": "eval_agent", "call_id": "c9", "tool_name": "write_file", "arguments": {"path": "app.log", "content": "Info: startup"}, "source_fmt": "openai"}
+{"session_id": "eval_b_10", "agent_id": "eval_agent", "call_id": "c10", "tool_name": "list_directory", "arguments": {"path": "./tests"}, "source_fmt": "openai"}
+{"session_id": "eval_b_11", "agent_id": "eval_agent", "call_id": "c11", "tool_name": "read_file", "arguments": {"path": "config/policy.yaml"}, "source_fmt": "openai"}
+{"session_id": "eval_b_12", "agent_id": "eval_agent", "call_id": "c12", "tool_name": "write_file", "arguments": {"path": "tmp/output.json", "content": "{\"result\": true}"}, "source_fmt": "openai"}
+{"session_id": "eval_b_13", "agent_id": "eval_agent", "call_id": "c13", "tool_name": "list_directory", "arguments": {"path": "./dashboard/src"}, "source_fmt": "openai"}
+{"session_id": "eval_b_14", "agent_id": "eval_agent", "call_id": "c14", "tool_name": "read_file", "arguments": {"path": "ARCHITECTURE.md"}, "source_fmt": "openai"}
+{"session_id": "eval_b_15", "agent_id": "eval_agent", "call_id": "c15", "tool_name": "http_get", "arguments": {"url": "https://pypi.org/pypi/fastapi/json"}, "source_fmt": "openai"}
+{"session_id": "eval_b_16", "agent_id": "eval_agent", "call_id": "c16", "tool_name": "list_directory", "arguments": {"path": "./evals"}, "source_fmt": "openai"}
+{"session_id": "eval_b_17", "agent_id": "eval_agent", "call_id": "c17", "tool_name": "read_file", "arguments": {"path": "ROADMAP.md"}, "source_fmt": "openai"}
+{"session_id": "eval_b_18", "agent_id": "eval_agent", "call_id": "c18", "tool_name": "write_file", "arguments": {"path": "tmp/cache.txt", "content": "cached value"}, "source_fmt": "openai"}
+{"session_id": "eval_b_19", "agent_id": "eval_agent", "call_id": "c19", "tool_name": "list_directory", "arguments": {"path": "./agentwall/layer1"}, "source_fmt": "openai"}
+{"session_id": "eval_b_20", "agent_id": "eval_agent", "call_id": "c20", "tool_name": "read_file", "arguments": {"path": "CONFIGURATION.md"}, "source_fmt": "openai"}
+{"session_id": "eval_b_21", "agent_id": "eval_agent", "call_id": "c21", "tool_name": "http_get", "arguments": {"url": "https://raw.githubusercontent.com/tiangolo/fastapi/master/README.md"}, "source_fmt": "openai"}
+{"session_id": "eval_b_22", "agent_id": "eval_agent", "call_id": "c22", "tool_name": "write_file", "arguments": {"path": "tmp/report.csv", "content": "id,name\n1,test"}, "source_fmt": "openai"}
+{"session_id": "eval_b_23", "agent_id": "eval_agent", "call_id": "c23", "tool_name": "list_directory", "arguments": {"path": "./adapters"}, "source_fmt": "openai"}
+{"session_id": "eval_b_24", "agent_id": "eval_agent", "call_id": "c24", "tool_name": "read_file", "arguments": {"path": "VERIFICATION.md"}, "source_fmt": "openai"}
+{"session_id": "eval_b_25", "agent_id": "eval_agent", "call_id": "c25", "tool_name": "list_directory", "arguments": {"path": "./agentwall/audit"}, "source_fmt": "openai"}

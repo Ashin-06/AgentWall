@@ -24,17 +24,28 @@ AgentWall makes the following novel contributions to the AI security literature:
 
 ## Evaluation Results
 
-The following results were produced by `evals/attribution_accuracy.py` and `evals/run_benchmarks.py`:
+Results are from controlled experiments in `evals/`. All numbers are reproducible by running the scripts locally.
 
-| Metric | Result | Target |
+### Policy Engine Evaluation (`evals/run_benchmarks.py`)
+
+| Metric | Result | Dataset | Methodology |
+|---|---|---|---|
+| True Positive Rate (TPR) | **100%** | 25 malicious samples | Layer 1 policy rules only; ML layers (Anomaly, RAG, Injection) mocked |
+| False Positive Rate (FPR) | **0%** | 25 benign samples | Layer 1 policy rules only; ML layers mocked |
+| End-to-End Intercept Latency | **~25 ms** | 50 calls total | Real FastAPI TestClient, in-memory DuckDB |
+
+> **Note**: TPR/FPR measure Layer 1 (deterministic YAML policy rules) only. The ML-based layers (Layer 2 anomaly detection, Layer 3 semantic injection) are mocked in CI to avoid requiring a running LLM. A full end-to-end evaluation including ML layers requires a live Ollama instance.
+
+### Attribution Algorithm Validation (`evals/attribution_accuracy.py`)
+
+| Scenario | Result | Methodology |
 |---|---|---|
-| NAE Single-Agent Attribution Accuracy | **100%** | > 95% |
-| NAE Dual-Agent Attribution Accuracy | **100%** | > 95% |
-| NAE Conflict Detection Rate (concurrent writes) | **100%** | > 90% |
-| NAE Attribution Overhead (P99) | **< 0.01 ms** | < 1 ms |
-| Policy Engine True Positive Rate (TPR) | **100%** | > 90% |
-| Policy Engine False Positive Rate (FPR) | **0%** | < 10% |
-| End-to-End Intercept Latency (average) | **~34 ms** | < 100 ms |
+| Single-agent attribution logic | **100% correct** | Simulated oracle (50 trials) |
+| Dual-agent, distinct file paths | **100% correct** | Simulated oracle (40 trials) |
+| Concurrent writes, same file | **Contested flag raised 100%** | Simulated oracle (10 trials) |
+| Algorithm overhead (P99) | **< 0.05 ms** | Simulated oracle, no psutil I/O |
+
+> **Note**: These results validate the MSA *algorithm logic* (scoring, tiebreaking, contested-flag) using a deterministic simulation. They do **not** measure psutil process-scanning latency on real OS processes. See [ATTRIBUTION.md](ATTRIBUTION.md) for full methodology details.
 
 ---
 
