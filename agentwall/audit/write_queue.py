@@ -70,7 +70,7 @@ class DBWriteQueue:
         final_url = db_url or db_path
         
         # Ensure path is absolute for Windows stability
-        if not (final_url.startswith("postgres://") or final_url.startswith("postgresql://")):
+        if final_url != ":memory:" and not (final_url.startswith("postgres://") or final_url.startswith("postgresql://")):
             if not os.path.isabs(final_url):
                 final_url = os.path.join(os.getcwd(), final_url)
 
