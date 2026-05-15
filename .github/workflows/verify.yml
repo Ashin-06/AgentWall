@@ -45,6 +45,12 @@ jobs:
       run: |
         python evals/run_benchmarks.py
         
+    - name: Run Attribution Accuracy Experiment
+      env:
+        PYTHONPATH: .
+      run: |
+        python evals/attribution_accuracy.py
+        
     - name: Smoke Test (Server Startup)
       env:
         AGENTWALL_ADMIN_PASSWORD: admin
