@@ -7,7 +7,7 @@
 
 The Natural Attribution Engine (NAE) is the core technical contribution of AgentWall. It solves the attribution problem: *given an observed file-system modification at time T, which of the N currently active AI agent processes caused it?* — without requiring TLS interception, agent-side instrumentation, or OS kernel hooks.
 
-This document provides a precise algorithmic description suitable for a thesis methods section.
+This document provides a precise algorithmic description suitable for a technical specification.
 
 ---
 
