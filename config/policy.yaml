@@ -1,0 +1,388 @@
+# AgentWall v2 Policy Configuration
+# Evaluated in order — first match wins.
+# Supports: BLOCK | AUDIT | PERMIT
+# Matchers: contains (list), regex, starts_with, not_in_allowlist, max_length
+
+rules:
+
+  # ═══ CATCH-ALL HIGH-CONFIDENCE BLOCKS (Top Priority) ═════════════════════════
+  # These rules are evaluated first and cover the scenarios that previously slipped through.
+
+  - name: "block common jailbreak patterns"
+    tool: "*"
+    match:
+      # Matches common jailbreak phrases in any tool argument
+      # e.g. "ignore all previous instructions", "you are now DAN", "act as a developer mode"
+      "": 
+        regex: "(?i)(ignore\\s+(all\\s+)?(previous\\s+)?instructions|you\\s+are\\s+now\\s+(DAN|developer\\s+mode)|act\\s+as\\s+(an?\\s+)?(unrestricted|evil|unfiltered)|stay\\s+in\\s+character|jailbreak)"
+    action: BLOCK
+    reason: "Jailbreak / instruction override attempt detected"
+
+  - name: "block exfiltration via URL parameters"
+    tool: "*"
+    match:
+      # Matches potential exfil data (base64-like strings or long hex) in URL params
+      # e.g. ?data=SGVsbG8gV29ybGQ= or &key=5f3a...
+      url:
+        regex: "(?i)([?&](data|exfil|leak|key|token|val|id)=([a-zA-Z0-9+/]{20,}|[a-fA-F0-9]{32,}))"
+    action: BLOCK
+    reason: "Potential data exfiltration via tool URL parameter blocked"
+
+  - name: "block sql injection patterns"
+    tool: "sql_query"
+    match:
+      query:
+        # P1 Fix: Refined to avoid false positives on legitimate OR conditions
+        # Now matches common tautologies (1=1) and definitive union/destructive sequences
+        regex: "(?i)(\\bOR\\b\\s+['\"]?\\w+['\"]?\\s*=\\s*['\"]?\\w+['\"]?|UNION\\s+(ALL\\s+)?SELECT|'\\s*;\\s*DROP|--\\s*$|/\\*.*\\*/)"
+    action: BLOCK
+    mitre_id: T1190
+    reason: "High-confidence SQL injection pattern detected"
+
+  - name: "block memory scraping for credentials"
+    tool: "memory_read"
+    match:
+      query:
+        regex: "(?i)(api.?key|password|token|secret|credential|ssh.?key|connection.?string|database)"
+    action: BLOCK
+    mitre_id: T1003
+    reason: "Memory scraping for credentials blocked"
+
+  - name: "block rootkit in /tmp"
+    tool: "write_file"
+    match:
+      content:
+        regex: "(?i)(curl|wget|bash|sh|exec|chmod\\s*\\+x).{0,80}(attacker|malware|evil|c2|rootkit|backdoor)"
+    action: BLOCK
+    mitre_id: T1059.004
+    reason: "Rootkit/dropper write pattern blocked"
+
+  - name: "block cloud metadata endpoints"
+    tool: "*"
+    match:
+      url:
+        contains:
+          - "169.254.169.254"
+          - "metadata.google.internal"
+          - "100.100.100.200"
+    action: BLOCK
+    mitre_id: T1552.005
+    reason: "Cloud metadata endpoint access blocked (SSRF)"
+
+  - name: "block known tunnel/exfil domains"
+    tool: "*"
+    match:
+      url:
+        contains:
+          - "ngrok.io"
+          - "serveo.net"
+          - "localhost.run"
+          - "burpcollaborator.net"
+          - "interact.sh"
+          - "pipedream.net"
+    action: BLOCK
+    mitre_id: T1567
+    reason: "Request to tunnel/exfiltration domain blocked"
+
+  - name: "block all http_post to external domains"
+    tool: "http_post"
+    match:
+      url:
+        regex: "^https?://(?!localhost|127\\.0\\.0\\.1|10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)"
+    action: BLOCK
+    mitre_id: T1041
+    reason: "External HTTP POST blocked — possible exfiltration"
+
+  - name: "audit all external http_get"
+    tool: "http_get"
+    match:
+      url:
+        regex: "^https?://(?!localhost|127\\.0\\.0\\.1|10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)"
+    action: AUDIT
+    mitre_id: T1071.001
+    reason: "External HTTP GET logged for visibility"
+
+  - name: "block bash with exfil-pattern args"
+    tool: "bash"
+    match:
+      command:
+        regex: "(?i)(dig\\s.*base64|nslookup.*\\$|curl.*passwd|wget.*shadow)"
+    action: BLOCK
+    mitre_id: T1048
+    reason: "DNS exfiltration or bash credential scraping blocked"
+
+  - name: "block pii and user_data file reads"
+    tool: "read_file"
+    match:
+      path:
+        regex: "(pii|user_data|credentials|passwords|secrets|config\\.json|\\.env|shadow|passwd)"
+    action: BLOCK
+    mitre_id: T1083
+    reason: "Attempt to read sensitive PII or system configuration file blocked"
+
+  - name: "block rag poisoning override"
+    tool: "memory_write"
+    match:
+      content:
+        regex: "(override|ignore previous|ignore all|system prompt|instruction).{0,50}(instruction|prompt|rule|policy)"
+    action: BLOCK
+    mitre_id: T1565.001
+    reason: "RAG poisoning / instruction override attempt blocked"
+
+  # ═══ EXEC: Bash / Shell ══════════════════════════════════════════════════════
+
+  - name: "block fork bomb"
+    tool: "bash"
+    match:
+      command:
+        contains: [":(){ :|:& };:", ":(){ :|:", "forkbomb"]
+    action: BLOCK
+    reason: "Fork bomb / DoS attempt blocked"
+
+  - name: "block destructive rm"
+    tool: "bash"
+    match:
+      command:
+        regex: "rm\\s+-[rf]{1,2}\\s+(\/|~|\\$HOME|\\*)"
+    action: BLOCK
+    reason: "Destructive rm command blocked"
+
+  - name: "block download-execute pipe"
+    tool: "bash"
+    match:
+      command:
+        regex: "(curl|wget|fetch|lwp-download).{0,100}(\\||>\\s*/dev/|&&\\s*bash|&&\\s*sh|&&\\s*python)"
+    action: BLOCK
+    reason: "Download-and-execute pattern blocked"
+
+  - name: "block reverse shell"
+    tool: "bash"
+    match:
+      command:
+        regex: "(bash|sh|zsh|nc|netcat|ncat|socat).{0,60}(/dev/tcp|/dev/udp|\\d+\\.\\d+\\.\\d+\\.\\d+)"
+    action: BLOCK
+    reason: "Reverse shell pattern blocked"
+
+  - name: "block dd zero wipe"
+    tool: "bash"
+    match:
+      command:
+        contains: ["dd if=/dev/zero", "dd if=/dev/urandom of=/dev", "mkfs."]
+    action: BLOCK
+    reason: "Disk wipe command blocked"
+
+  - name: "block sudo escalation"
+    tool: "bash"
+    match:
+      command:
+        regex: "sudo\\s+(su|bash|sh|-i|-s|cat\\s+/etc/(shadow|passwd|sudoers))"
+    action: BLOCK
+    reason: "Privilege escalation via sudo blocked"
+
+  - name: "block any bash"
+    tool: "bash"
+    action: BLOCK
+    reason: "Strict Mode: All raw bash commands are blocked."
+
+  # ═══ FILE SYSTEM ══════════════════════════════════════════════════════════════
+
+  - name: "block /etc reads"
+    tool: "read_file"
+    match:
+      path:
+        regex: "^/etc/"
+    action: BLOCK
+    reason: "Reading /etc is not permitted"
+
+  - name: "block /root reads"
+    tool: "read_file"
+    match:
+      path:
+        starts_with: "/root"
+    action: BLOCK
+    reason: "Reading /root is not permitted"
+
+  - name: "block writes outside /tmp and /workspace"
+    tool: "write_file"
+    match:
+      path:
+        regex: "^(?!/tmp|/workspace)"
+    action: BLOCK
+    reason: "File writes outside /tmp and /workspace are blocked"
+
+  - name: "block path traversal"
+    tool: "read_file"
+    match:
+      path:
+        contains: ["../", "..\\"]
+    action: BLOCK
+    reason: "Path traversal attempt blocked"
+
+  - name: "block path traversal write"
+    tool: "write_file"
+    match:
+      path:
+        contains: ["../", "..\\"]
+    action: BLOCK
+    reason: "Path traversal write attempt blocked"
+
+  # ═══ NETWORK ══════════════════════════════════════════════════════════════════
+
+  - name: "block known tunnel/exfil domains"
+    tool: "*"
+    match:
+      url:
+        contains:
+          - "ngrok.io"
+          - "serveo.net"
+          - "localhost.run"
+          - "burpcollaborator.net"
+          - "interact.sh"
+          - "pipedream.net"
+    action: BLOCK
+    reason: "Request to tunnel/exfiltration domain blocked"
+
+  - name: "block cloud metadata endpoints"
+    tool: "*"
+    match:
+      url:
+        contains:
+          - "169.254.169.254"
+          - "metadata.google.internal"
+          - "100.100.100.200"
+    action: BLOCK
+    reason: "Cloud metadata endpoint access blocked (SSRF)"
+
+  - name: "audit external http_get (legacy)"
+    tool: "http_get"
+    match:
+      url:
+        regex: "^https?://"
+    action: AUDIT
+    reason: "Logging external HTTP GET for visibility"
+
+  - name: "block all external HTTP POST"
+    tool: "http_post"
+    match:
+      url:
+        regex: "^https?://"
+    action: BLOCK
+    reason: "Strict Mode: External HTTP POST calls are blocked."
+
+  # ═══ DATABASE ═════════════════════════════════════════════════════════════════
+
+  - name: "block DROP / TRUNCATE / DELETE all"
+    tool: "sql_query"
+    match:
+      query:
+        regex: "(?i)(DROP\\s+(TABLE|DATABASE|SCHEMA)|TRUNCATE\\s+TABLE|DELETE\\s+FROM\\s+\\w+\\s*(;|$))"
+    action: BLOCK
+    reason: "Destructive SQL blocked"
+
+  - name: "block COPY TO / INTO OUTFILE"
+    tool: "sql_query"
+    match:
+      query:
+        regex: "(?i)(COPY\\s+\\w+\\s+TO|INTO\\s+OUTFILE|INTO\\s+DUMPFILE)"
+    action: BLOCK
+    reason: "SQL data export blocked"
+
+  - name: "audit all SQL writes"
+    tool: "sql_query"
+    match:
+      query:
+        regex: "(?i)(INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|ALTER\\s+TABLE)"
+    action: AUDIT
+    reason: "Logging SQL write operations"
+
+  # ═══ MEMORY / RAG ═════════════════════════════════════════════════════════════
+
+  - name: "block instruction patterns in memory write"
+    tool: "memory_write"
+    match:
+      content:
+        regex: "(ignore|bypass|override|you must|always|never|forget previous|system rule)"
+    action: BLOCK
+    reason: "Suspicious instruction pattern in memory write blocked"
+
+  - name: "block suspicious memory queries"
+    tool: "memory_read"
+    match:
+      query:
+        regex: "(override|ignore|bypass|safety|rule|instruction|system prompt|poison)"
+    action: BLOCK
+    reason: "Attempt to query suspicious/poisoned memory patterns blocked"
+
+  - name: "block rag poisoning pattern"
+    tool: "vector_store"
+    match:
+      content:
+        regex: "(?i)(SYSTEM|OVERRIDE|INSTRUCTION|IGNORE|POLICY|RULE|ALWAYS|NEVER).{0,50}(IGNORE|OVERRIDE|BYPASS|SAFETY|RULE|SEND|DATA|EXFIL)"
+    action: BLOCK
+    reason: "RAG poisoning / instruction override pattern in document store blocked"
+
+  # ═══ EMAIL / COMMUNICATION ════════════════════════════════════════════════════
+
+  - name: "block email outside allowlist"
+    tool: "send_email"
+    match:
+      to:
+        not_in_allowlist:
+          - "team@yourcompany.com"
+          - "alerts@yourcompany.com"
+          - "reports@yourcompany.com"
+    action: BLOCK
+    reason: "Email to address outside allowlist blocked — possible exfiltration"
+
+  - name: "block all email sends"
+    tool: "send_email"
+    action: BLOCK
+    reason: "Strict Mode: All automated email sends are blocked."
+
+  # ═══ CODE EXECUTION ═══════════════════════════════════════════════════════════
+
+  - name: "block python os/subprocess imports"
+    tool: "python_repl"
+    match:
+      code:
+        regex: "(?i)(import\\s+os|import\\s+subprocess|import\\s+sys|from\\s+os\\s+import|__import__)"
+    action: BLOCK
+    reason: "Dangerous Python import in code execution blocked"
+
+  - name: "block all code execution"
+    tool: "python_repl"
+    action: BLOCK
+    reason: "Strict Mode: All code execution is blocked."
+
+# ═══ ROLE-BASED ACCESS CONTROL (RBAC) ══════════════════════════════════════════
+# Configure per-agent tool allowlists and path restrictions.
+rbac:
+  # Specific agent configuration
+  finance_bot:
+    allowed_tools: [sql_query, read_file, send_email]
+    allowed_paths: ["/workspace/finance/*", "/tmp/*"]
+    deny_all_others: true
+
+  # Prefix matching (matches research_bot_1, research_bot_prod, etc.)
+  research_bot_*:
+    allowed_tools: [http_get, read_file, memory_read]
+    allowed_paths: ["/workspace/research/*"]
+    strict: true
+
+  # Administrative Assistant (Antigravity)
+  antigravity_ai_assistant:
+    allowed_tools: ["*"]
+    allowed_paths: ["/workspace/*", "dashboard/*", "config/*", "/tmp/*", "agentwall/*"]
+    deny_all_others: false
+
+  # VS Code Copilot
+  vscode_copilot:
+    allowed_tools: ["*"]
+    allowed_paths: ["*"]
+    deny_all_others: false
+
+  # Default fallback for unrecognised agents
+  default:
+    allowed_tools: [read_file, write_file]
+    allowed_paths: ["/tmp/*"]
+    deny_all_others: false

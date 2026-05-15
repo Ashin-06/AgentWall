@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentWall v2.3 | Live Attack Stream</title>
+    <style>
+        body { background: #0a0a0b; color: #e0e0e0; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .status { color: #00ff00; font-size: 0.9em; }
+        .event-card { background: #151517; border-left: 4px solid #333; padding: 15px; margin-bottom: 10px; border-radius: 4px; animation: slideIn 0.3s ease-out; }
+        .event-card.BLOCK { border-left-color: #ff4444; background: #1c1414; }
+        .event-card.AUDIT { border-left-color: #ffbb33; }
+        .meta { font-size: 0.8em; color: #888; display: flex; gap: 15px; margin-bottom: 8px; }
+        .reason { font-weight: bold; margin-bottom: 5px; }
+        .tool { color: #44aaff; font-family: monospace; }
+        .mitre { background: #333; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        #stream { max-width: 1000px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <div id="stream">
+        <div class="header">
+            <div><strong>🛡️ AgentWall v2.3</strong> Enterprise Dashboard</div>
+            <div id="ws-status" class="status">Connecting...</div>
+        </div>
+        <div id="events"></div>
+    </div>
+
+    <script>
+        const eventsDiv = document.getElementById('events');
+        const statusDiv = document.getElementById('ws-status');
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${location.host}/ws/intercept`);
+
+        ws.onopen = () => {
+            statusDiv.innerText = 'Connected • Live';
+            ws.send(JSON.stringify({ type: 'subscribe' }));
+        };
+
+        ws.onmessage = (msg) => {
+            const data = JSON.parse(msg.data);
+            if (data.type === 'alert') {
+                addEvent(data.event);
+            }
+        };
+
+        function addEvent(ev) {
+            const card = document.createElement('div');
+            card.className = `event-card ${ev.verdict}`;
+            card.innerHTML = `
+                <div class="meta">
+                    <span>${new Date(ev.timestamp * 1000).toLocaleTimeString()}</span>
+                    <span>Session: ${ev.session_id.slice(0,8)}</span>
+                    <span class="tool">${ev.tool_name}</span>
+                    ${ev.mitre_id ? `<span class="mitre">${ev.mitre_id}</span>` : ''}
+                </div>
+                <div class="reason">${ev.verdict}: ${ev.reason}</div>
+                <div style="font-size:0.8em; color:#666">Latency: ${ev.latency_ms.toFixed(2)}ms | Agent: ${ev.agent_id}</div>
+            `;
+            eventsDiv.prepend(card);
+            if (eventsDiv.children.length > 50) eventsDiv.lastChild.remove();
+        }
+    </script>
+</body>
+</html>

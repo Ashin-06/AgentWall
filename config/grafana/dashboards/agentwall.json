@@ -1,0 +1,212 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 0 },
+      "id": 10,
+      "title": "Total Calls",
+      "type": "stat",
+      "targets": [{ "expr": "sum(agentwall_calls_total)", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#5dcaa5", "mode": "fixed" }, "unit": "short" } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 0 },
+      "id": 11,
+      "title": "Total Blocked",
+      "type": "stat",
+      "targets": [{ "expr": "sum(agentwall_calls_total{verdict=\"BLOCK\"})", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#f09999", "mode": "fixed" }, "unit": "short" } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 8, "y": 0 },
+      "id": 12,
+      "title": "Total Flagged (AUDIT)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(agentwall_calls_total{verdict=\"AUDIT\"})", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#f0c875", "mode": "fixed" }, "unit": "short" } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 12, "y": 0 },
+      "id": 13,
+      "title": "Block Rate %",
+      "type": "gauge",
+      "targets": [{ "expr": "100 * sum(agentwall_calls_total{verdict=\"BLOCK\"}) / sum(agentwall_calls_total)", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 40 }, { "color": "red", "value": 70 }] } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 16, "y": 0 },
+      "id": 14,
+      "title": "Active Campaigns",
+      "type": "gauge",
+      "targets": [{ "expr": "agentwall_active_campaigns", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 10, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 3 }] } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 0 },
+      "id": 15,
+      "title": "Uptime",
+      "type": "stat",
+      "targets": [{ "expr": "agentwall_uptime_seconds", "legendFormat": "" }],
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "fixedColor": "#60a5fa", "mode": "fixed" } } }
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 5 },
+      "id": 1,
+      "title": "Verdict Rate (calls/min)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(agentwall_calls_total{verdict=\"BLOCK\"}[1m]))*60",  "legendFormat": "BLOCK/min" },
+        { "expr": "sum(rate(agentwall_calls_total{verdict=\"AUDIT\"}[1m]))*60",  "legendFormat": "AUDIT/min" },
+        { "expr": "sum(rate(agentwall_calls_total{verdict=\"PERMIT\"}[1m]))*60", "legendFormat": "PERMIT/min" }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "BLOCK/min" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f09999", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "AUDIT/min" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f0c875", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "PERMIT/min" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5dcaa5", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 5 },
+      "id": 2,
+      "title": "Latency p50 / p95 / p99 (ms)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "agentwall_latency_seconds{quantile=\"0.5\", path=\"fast\"} * 1000",  "legendFormat": "p50 fast" },
+        { "expr": "agentwall_latency_seconds{quantile=\"0.95\", path=\"fast\"} * 1000", "legendFormat": "p95 fast" },
+        { "expr": "agentwall_latency_seconds{quantile=\"0.95\", path=\"ml\"} * 1000",   "legendFormat": "p95 ml" },
+        { "expr": "agentwall_latency_seconds{quantile=\"0.95\", path=\"llm\"} * 1000",  "legendFormat": "p95 llm" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ms", "custom": { "lineWidth": 2 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p95 llm" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f09999", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "p95 fast" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5dcaa5", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 12 },
+      "id": 5,
+      "title": "Top Violations by Rule",
+      "type": "barchart",
+      "targets": [{ "expr": "sort_desc(sum(agentwall_policy_violations_total) by (rule))", "legendFormat": "{{rule}}" }],
+      "options": { "orientation": "horizontal", "barWidth": 0.6 }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 12 },
+      "id": 20,
+      "title": "MITRE ATT&CK Technique Hits",
+      "type": "barchart",
+      "targets": [{ "expr": "sort_desc(sum(agentwall_mitre_hits_total) by (technique))", "legendFormat": "{{technique}}" }],
+      "options": { "orientation": "horizontal", "barWidth": 0.6 },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#c084fc", "mode": "fixed" } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 12 },
+      "id": 21,
+      "title": "Tool Call Frequency",
+      "type": "barchart",
+      "targets": [{ "expr": "sort_desc(sum(agentwall_tool_calls_total) by (tool))", "legendFormat": "{{tool}}" }],
+      "options": { "orientation": "horizontal", "barWidth": 0.6 },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#60a5fa", "mode": "fixed" } } }
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 19 },
+      "id": 3,
+      "title": "Injection Score Distribution (p50 / p95 / p99)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "agentwall_injection_score{quantile=\"0.5\"}", "legendFormat": "p50" },
+        { "expr": "agentwall_injection_score{quantile=\"0.95\"}", "legendFormat": "p95" },
+        { "expr": "agentwall_injection_score{quantile=\"0.99\"}", "legendFormat": "p99" }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 1, "custom": { "lineWidth": 2 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p99" }, "properties": [{ "id": "color", "value": { "fixedColor": "#f09999", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "p50" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5dcaa5", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
+      "id": 22,
+      "title": "Anomaly Score (p95) — Behavioural Drift",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "agentwall_anomaly_score{quantile=\"0.95\"}", "legendFormat": "p95 anomaly" },
+        { "expr": "agentwall_anomaly_score{quantile=\"0.5\"}",  "legendFormat": "p50 anomaly" }
+      ],
+      "fieldConfig": {
+        "defaults": { "min": 0, "max": 1, "custom": { "lineWidth": 2 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "p95 anomaly" }, "properties": [{ "id": "color", "value": { "fixedColor": "#fb923c", "mode": "fixed" } }] }
+        ]
+      }
+    },
+
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 26 },
+      "id": 23,
+      "title": "Blocks per Agent (Top Offenders)",
+      "type": "barchart",
+      "targets": [{ "expr": "sort_desc(sum(agentwall_agent_blocks_total) by (agent))", "legendFormat": "{{agent}}" }],
+      "options": { "orientation": "horizontal" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "#f09999", "mode": "fixed" } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 26 },
+      "id": 6,
+      "title": "Total Calls: BLOCK vs AUDIT vs PERMIT (cumulative)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(agentwall_calls_total{verdict=\"BLOCK\"})",  "legendFormat": "BLOCK" },
+        { "expr": "sum(agentwall_calls_total{verdict=\"AUDIT\"})",  "legendFormat": "AUDIT" },
+        { "expr": "sum(agentwall_calls_total{verdict=\"PERMIT\"})", "legendFormat": "PERMIT" }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 15 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "BLOCK" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f09999", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "AUDIT" },  "properties": [{ "id": "color", "value": { "fixedColor": "#f0c875", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "PERMIT" }, "properties": [{ "id": "color", "value": { "fixedColor": "#5dcaa5", "mode": "fixed" } }] }
+        ]
+      }
+    }
+
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["agentwall"],
+  "timezone": "",
+  "title": "AgentWall Security Ops",
+  "uid": "agentwall-security-ops",
+  "version": 5
+}

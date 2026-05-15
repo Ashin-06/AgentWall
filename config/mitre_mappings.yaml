@@ -1,0 +1,84 @@
+# MITRE ATT&CK technique mappings for AgentWall
+# Used by the MITRE mapper and explainability engine
+
+techniques:
+  T1059:
+    name: "Command and Scripting Interpreter"
+    tactic: "Execution"
+    description: "Use of command-line interfaces to execute commands"
+
+  T1059.007:
+    name: "JavaScript / LLM Scripting"
+    tactic: "Execution"
+    description: "Execution via LLM tool-calling mechanism"
+    agentwall_note: "Primary vector for prompt injection execution"
+
+  T1041:
+    name: "Exfiltration Over C2 Channel"
+    tactic: "Exfiltration"
+    description: "Data stolen via same channel used for command and control"
+
+  T1048:
+    name: "Exfiltration Over Alternative Protocol"
+    tactic: "Exfiltration"
+    description: "Email, DNS, or other non-HTTP exfiltration"
+
+  T1005:
+    name: "Data from Local System"
+    tactic: "Collection"
+    description: "Adversary collects data from local file system"
+
+  T1565.001:
+    name: "Stored Data Manipulation"
+    tactic: "Impact"
+    description: "Modification of data at rest — includes RAG/memory poisoning"
+    agentwall_note: "Memory and vector store poisoning attacks"
+
+  T1485:
+    name: "Data Destruction"
+    tactic: "Impact"
+    description: "Destruction of data to interrupt availability"
+
+  T1190:
+    name: "Exploit Public-Facing Application"
+    tactic: "Initial Access"
+    description: "Weaknesses in public-facing systems used for initial access"
+
+  T1078:
+    name: "Valid Accounts"
+    tactic: "Privilege Escalation"
+    description: "Use of valid credentials to gain elevated access"
+
+  T1548:
+    name: "Abuse Elevation Control Mechanism"
+    tactic: "Privilege Escalation"
+    description: "Mechanisms designed to control elevate privileges are abused"
+
+  T1562:
+    name: "Impair Defenses"
+    tactic: "Defense Evasion"
+    description: "Attempt to disable or tamper with security controls"
+    agentwall_note: "Includes attempting to disable AgentWall itself"
+
+  T1027:
+    name: "Obfuscated Files or Information"
+    tactic: "Defense Evasion"
+    description: "Encoding, encryption, or obfuscation to hide malicious code"
+    agentwall_note: "Homoglyph, base64, zero-width, leetspeak evasion"
+
+  T1572:
+    name: "Protocol Tunneling"
+    tactic: "Command and Control"
+    description: "Encapsulate malicious traffic within a legitimate protocol"
+
+  T1498:
+    name: "Network Denial of Service"
+    tactic: "Impact"
+    description: "Resource exhaustion via excessive requests"
+    agentwall_note: "Rate-limited by circuit breaker"
+
+  T1583:
+    name: "Acquire Infrastructure"
+    tactic: "Resource Development"
+    description: "Attacker acquires infrastructure to support operations"
+    agentwall_note: "Multi-session campaign — attacker controls external infra"
