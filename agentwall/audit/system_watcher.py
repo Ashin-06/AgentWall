@@ -48,7 +48,10 @@ KNOWN_CLI_AGENTS = {
 LAUNCHER_PARENTS = {"code.exe", "code", "cursor", "windsurf"}
 
 # MSA Algorithm Parameters
-CORRELATION_WINDOW_S = 2.0    # W: time window to consider process "recently active"
+# W: a process is considered "recently active" if it had non-trivial CPU usage
+# at the moment of the snapshot (psutil does not expose per-second history,
+# so we use the snapshot cpu_percent as the best available proxy).
+CORRELATION_WINDOW_S = 2.0    # Reserved for future per-second history tracking
 CPU_THRESHOLD_PCT    = 5.0    # Minimum CPU% to be considered active
 SIGNAL_WEIGHTS = {
     "open_file_handle": 1.0,
@@ -91,23 +94,32 @@ def _get_process_snapshot() -> list[dict]:
 
 
 def _score_process(proc: dict, event_path: str, event_ts: float) -> float:
-    """Phase 2 of MSA: compute weighted signal score for one candidate process."""
+    """
+    Phase 2 of MSA: compute weighted signal score for one candidate process.
+
+    Note on Signal 2 (CPU Activity):
+    psutil.cpu_percent() returns the CPU usage since the last call, which
+    is the best available proxy for "was this process active recently" without
+    OS-level per-second CPU history. CORRELATION_WINDOW_S is the intended
+    semantic but is approximated via the cpu_percent snapshot threshold.
+    """
     score = 0.0
 
-    # Signal 1: Open file handle (strongest)
+    # Signal 1: Open file handle (strongest — OS-verified)
     if event_path in proc["open_files"]:
         score += SIGNAL_WEIGHTS["open_file_handle"]
 
-    # Signal 2: Recent CPU activity within correlation window W
+    # Signal 2: CPU activity (proxy for "active within correlation window")
+    # Best approximation available without kernel-level per-second history.
     if proc["cpu_pct"] >= CPU_THRESHOLD_PCT:
         score += SIGNAL_WEIGHTS["cpu_activity"]
 
-    # Signal 3: Process name signature match
+    # Signal 3: Process name is a known AI agent signature
     if proc["name"] in KNOWN_AGENTS:
         score += SIGNAL_WEIGHTS["name_match"]
 
-    # Signal 4: Parent is a known launcher
-    # (Extension hosts spawn child processes but belong to the IDE)
+    # Signal 4: Parent process is a known IDE launcher
+    # Extension hosts (e.g. VS Code extension host) inherit the IDE's identity.
     if proc.get("ppid"):
         try:
             parent = psutil.Process(proc["ppid"])
@@ -155,15 +167,15 @@ def attribute_event(event_path: str, event_ts: float) -> dict:
         scores[pid] = _score_process(proc, event_path, event_ts)
         labels[pid] = label
 
-    # Phase 3: Conflict resolution
+    # Phase 3 — Conflict Resolution
     max_score = max(scores.values())
     top_pids  = [pid for pid, s in scores.items() if s == max_score]
     contested = len(top_pids) > 1
-
     if contested:
-        # Tiebreaker: highest CPU burst (most recently active)
-        top_procs = {pid: proc for proc, _ in candidates for pid2, _ in [(proc["pid"], None)] if pid2 == pid}
-        winner_pid = max(top_pids, key=lambda p: scores.get(p, 0))
+        # Tiebreaker: among tied candidates, the one with highest CPU usage
+        # is most likely the active writer. Build a lookup from pid -> proc.
+        pid_to_proc = {proc["pid"]: proc for proc, _ in candidates}
+        winner_pid = max(top_pids, key=lambda p: pid_to_proc.get(p, {}).get("cpu_pct", 0.0))
     else:
         winner_pid = top_pids[0]
 
