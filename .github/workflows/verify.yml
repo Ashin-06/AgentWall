@@ -23,9 +23,27 @@ jobs:
         pip install -r requirements.txt
         
     - name: Smoke Test (Server Startup)
+      env:
+        AGENTWALL_ADMIN_PASSWORD: admin
+        AGENTWALL_AUTH_ENABLED: "0"
+        AGENTWALL_DB: ":memory:"
       run: |
-        # Try to start the server for 5 seconds to ensure no immediate crashes
-        timeout 10s python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8080 || code=$?; if [ $code -ne 124 ]; then exit $code; fi
+        # Start server in background and capture output
+        python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8080 > server_log.txt 2>&1 &
+        SERVER_PID=$!
+        
+        # Wait to see if it stays alive
+        sleep 10
+        
+        # Check if process is still running
+        if kill -0 $SERVER_PID 2>/dev/null; then
+          echo "Server started successfully."
+          kill $SERVER_PID
+        else
+          echo "Server crashed on startup! Logs:"
+          cat server_log.txt
+          exit 1
+        fi
 
     - name: Docker Build Test
       run: |
