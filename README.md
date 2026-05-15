@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🛡️ AgentWall
+<img src="dashboard/public/assets/logo.png" alt="AgentWall Logo" width="120" />
+
+# AgentWall
 
 **AI Agent Security Firewall for Autonomous Coding Agents**
 
@@ -11,6 +13,7 @@
 *A transparent security proxy that sits between autonomous AI coding agents and their LLM APIs — monitoring, attributing, and enforcing policy on every tool call, without breaking agent workflows.*
 
 </div>
+
 
 ---
 

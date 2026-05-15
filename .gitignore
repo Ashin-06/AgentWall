@@ -45,6 +45,9 @@ Thumbs.db
 # AgentWall Specific
 logs/
 temp/
+models/
+*.duckdb
+*.duckdb.wal
 *.png
 *.webp
 *.mp4
@@ -53,3 +56,13 @@ temp/
 !requirements.txt
 !LICENSE
 !dashboard/public/assets/logo.png
+
+# Personal / sensitive files — never commit these
+*.pdf
+*Resume*
+*CV*
+*.pem
+*.key
+*.p12
+*.pfx
+audit_spillover*
