@@ -45,3 +45,13 @@ client = OpenAI(
 ### CLI Agents (Aider / OpenDevin)
 Set the environment variable before running the agent:
 `export OPENAI_API_BASE=http://localhost:8000/v1`
+
+## 4. Production Deployment
+
+By default, the AgentWall development server runs with a single worker. If that worker crashes, the proxy goes down and takes your agents offline with it.
+
+For production, it is highly recommended to use `gunicorn` with `uvicorn` workers to ensure high availability and automatic restarts:
+
+```bash
+gunicorn agentwall.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+```
