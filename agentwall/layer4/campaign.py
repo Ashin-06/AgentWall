@@ -6,7 +6,10 @@ import time
 import mmh3
 import json
 import os
-import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -41,7 +44,7 @@ class CampaignDetector:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL")
         self._r = None
-        if self.redis_url:
+        if redis and self.redis_url:
             try:
                 self._r = redis.from_url(self.redis_url, decode_responses=True)
                 print(f"[CampaignDetector] Connected to Redis at {self.redis_url}")
