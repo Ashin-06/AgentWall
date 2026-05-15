@@ -4,8 +4,11 @@ Ensures approval tokens are shared across all pods.
 """
 import uuid
 import os
-import redis
 import json
+try:
+    import redis
+except ImportError:
+    redis = None
 import time
 
 class HITLManager:
@@ -20,9 +23,11 @@ class HITLManager:
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL")
         self._r = None
-        if self.redis_url:
+        if redis and self.redis_url:
             self._r = redis.from_url(self.redis_url, decode_responses=True)
             print(f"[HITLManager] Connected to Redis: {self.redis_url}")
+        elif self.redis_url:
+            print(f"[HITLManager] WARNING: REDIS_URL is set but 'redis' package is not installed. Falling back to local cache.")
         
         self.high_risk_tools = ["delete_db", "send_payment", "drop_table", "sudo_command"]
         self._local_cache = {} # Fallback
