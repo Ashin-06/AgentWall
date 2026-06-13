@@ -7,7 +7,9 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api":       { target: "http://localhost:8000", changeOrigin: true },
+      "/auth":      { target: "http://localhost:8000", changeOrigin: true },
       "/intercept": { target: "http://localhost:8000", changeOrigin: true },
+      "/metrics":   { target: "http://localhost:8000", changeOrigin: true },
       "/ws":        { target: "ws://localhost:8000",   ws: true },
     },
   },
