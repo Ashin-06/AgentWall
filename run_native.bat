@@ -1,5 +1,6 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
+title AgentWall Native Runner
 
 echo ################################################
 echo #      AgentWall Native Startup Script          #
@@ -32,6 +33,11 @@ if not exist ".env" (
 
 echo [2/3] Starting AgentWall Proxy (Native Mode)...
 echo [INFO] API will be available at http://localhost:8000
+echo.
+echo ################################################
+echo #  TIP: Run start_dashboard.bat for the full   #
+echo #  dashboard experience (backend + React UI)    #
+echo ################################################
 echo.
 
 set AGENTWALL_ENV=development

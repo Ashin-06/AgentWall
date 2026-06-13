@@ -1,7 +1,15 @@
 print("[Audit] [BOOT] AgentWall Loading...")
+
+# Load .env BEFORE any other imports so all modules see the env vars
+import os
+from dotenv import load_dotenv
+_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path, override=True)
+    print(f"[Config] Loaded .env from {_env_path}")
+
 import asyncio
 import json
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends
