@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+**/node_modules
+**/dist
+**/__pycache__
+.pytest_cache
+.venv
+venv
+models
+logs
+*.log
+*.duckdb
+*.duckdb.wal
+*.pem
+*.key

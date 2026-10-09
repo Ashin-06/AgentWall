@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createWSClient } from "../ws";
 import { Modal, InteractiveHBar, InteractiveSparkline } from "./ChartComponents";
 
 const API = "";
@@ -35,7 +36,7 @@ function topN(parsed, name, labelKey, n = 10) {
   return Object.entries(groups).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, n);
 }
 
-export default function MetricsDashboard() {
+export default function MetricsDashboard({ token, onUnauthorized }) {
   const [parsed, setParsed]         = useState({});
   const [performance, setPerformance] = useState({ latency: {}, queue_size: 0, uptime: 0 });
   const [history, setHistory]       = useState({ block: [], audit: [], permit: [], latency_p95: [], blockRate: [] });
@@ -45,31 +46,35 @@ export default function MetricsDashboard() {
   const [liveAlerts, setLiveAlerts] = useState([]);
   const [zoom, setZoom]             = useState(1.0);
   const [pulse, setPulse]           = useState(0); // For UI heartbeat effect
-  const wsRef = useRef(null);
+  const requestRef = useRef(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let ws; let rt;
-    const connect = () => {
-      const token = localStorage.getItem("agentwall_token");
-      ws = new WebSocket(`${WS_URL}${token ? `?token=${token}` : ""}`);
-      wsRef.current = ws;
-      ws.onopen  = () => setWsStatus("live");
-      ws.onclose = () => { setWsStatus("reconnecting"); rt = setTimeout(connect, 3000); };
-      ws.onmessage = (msg) => {
-        try { const ev = JSON.parse(msg.data); if (ev.event_id) setLiveAlerts(prev => [ev, ...prev].slice(0, 50)); } catch {}
-      };
-    };
-    connect(); return () => { clearTimeout(rt); ws?.close(); };
-  }, []);
+    const ws = createWSClient(WS_URL, {
+      token,
+      onOpen: () => setWsStatus("live"),
+      onClose: () => setWsStatus("reconnecting"),
+      onMessage: msg => {
+        if (msg.type === "alert" && msg.event) setLiveAlerts(prev => [msg.event, ...prev].slice(0, 50));
+      },
+    });
+    return () => ws.close();
+  }, [token]);
 
   const fetchMetrics = useCallback(async () => {
-    const token = localStorage.getItem("agentwall_token");
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
     const h = { "Authorization": `Bearer ${token}` };
     try {
-      const [mRes, pRes] = await Promise.all([fetch(`${API}/metrics`, {headers:h}), fetch(`${API}/api/performance`, {headers:h})]);
+      const [mRes, pRes] = await Promise.all([fetch(`${API}/metrics`, {headers:h, signal:controller.signal}), fetch(`${API}/api/performance`, {headers:h, signal:controller.signal})]);
+      if (controller.signal.aborted) return;
+      if (mRes.status === 401 || pRes.status === 401) { onUnauthorized(); return; }
+      if (!mRes.ok || !pRes.ok) throw new Error("Telemetry is unavailable. Showing the last successful measurements.");
       if (mRes.ok) {
         const p = parsePrometheus(await mRes.text());
         const pData = pRes.ok ? await pRes.clone().json() : { latency: {} };
+        if (controller.signal.aborted) return;
         const totalC = sumMetric(p, "agentwall_calls_total") || 0;
         const totalB = sumMetric(p, "agentwall_calls_total", { verdict: "BLOCK" }) || 0;
         setParsed(p);
@@ -81,12 +86,15 @@ export default function MetricsDashboard() {
           blockRate: [...prev.blockRate, totalC > 0 ? (totalB / totalC * 100) : 0].slice(-100),
         }));
       }
-      if (pRes.ok) setPerformance(await pRes.json());
+      const performanceData = await pRes.json();
+      if (controller.signal.aborted) return;
+      setPerformance(performanceData);
+      setError("");
       setPulse(p => p + 1); // Bump pulse on every successful fetch
-    } catch (e) { console.error(e); } finally { setLoading(false); }
-  }, []);
+    } catch (e) { if (!controller.signal.aborted) setError(e.message); } finally { if (!controller.signal.aborted) setLoading(false); }
+  }, [token, onUnauthorized]);
 
-  useEffect(() => { fetchMetrics(); const iv = setInterval(fetchMetrics, 3000); return () => clearInterval(iv); }, [fetchMetrics]);
+  useEffect(() => { fetchMetrics(); const iv = setInterval(fetchMetrics, 3000); return () => { clearInterval(iv); requestRef.current?.abort(); }; }, [fetchMetrics]);
 
   if (loading) return <div style={s.center}>Initializing Telemetry...</div>;
 
@@ -98,6 +106,7 @@ export default function MetricsDashboard() {
 
   return (
     <div style={s.container}>
+      {error && <p role="alert" style={{color: "#f09999"}}>{error}</p>}
       <header style={s.header}>
         <div style={s.titleGroup}>
           <h2 style={s.title}>System Observability</h2>
@@ -108,19 +117,19 @@ export default function MetricsDashboard() {
             {wsStatus === "live" ? "◉ SYSTEM_LIVE" : "◌ SYNCING..."}
             <div style={{...s.pulseDot, opacity: (pulse % 2 === 0) ? 1 : 0.3}} />
           </div>
-          <button style={s.btn} onClick={() => setZoom(z => z * 1.2)}>+</button>
-          <button style={s.btn} onClick={() => setZoom(z => z * 0.8)}>-</button>
+          <button style={s.btn} onClick={() => setZoom(z => Math.min(10, z * 1.2))}>+</button>
+          <button style={s.btn} onClick={() => setZoom(z => Math.max(0.2, z * 0.8))}>-</button>
         </div>
       </header>
 
-      <div style={s.statGrid}>
+      <div className="metrics-grid" style={s.statGrid}>
         <StatCard label="Throughput" value={totalCalls} color="#60a5fa" unit="calls" glow={pulse} />
         <StatCard label="Active Blocks" value={totalBlocks} color="#ef4444" unit="stopped" glow={pulse} />
         <StatCard label="P95 Latency" value={performance.latency?.p95 || 0} color="#c084fc" unit="ms" glow={pulse} />
         <StatCard label="DB Backlog" value={performance.queue_size || 0} color={(performance.queue_size || 0) > 50 ? "#ef4444" : "#5dcaa5"} unit="events" glow={pulse} />
       </div>
 
-      <div style={s.mainGrid}>
+      <div className="metrics-grid" style={s.mainGrid}>
         <Panel title="System Performance" sub="P95 Latency · Block Rate · DB Health">
           <div style={s.sparkGroup}>
             <div style={s.sparkItem}><div style={s.sparkLabel}>P95 Latency (ms)</div><InteractiveSparkline data={history.latency_p95.slice(-Math.round(20/zoom))} color="#c084fc" label="p95" /></div>
@@ -131,7 +140,7 @@ export default function MetricsDashboard() {
           <div style={s.alertScroll}>
             {liveAlerts.length === 0 ? <div style={s.alertEmpty}>Monitoring live agent telemetry...</div> : liveAlerts.map((a, i) => (
               <div key={i} style={{...s.alertItem, borderLeft: `3px solid ${a.verdict==='BLOCK'?'#ef4444':'#5dcaa5'}`}}>
-                <div style={s.alertTime}>{new Date().toLocaleTimeString()}</div>
+                <div style={s.alertTime}>{a.ts ? new Date(a.ts * 1000).toLocaleTimeString() : "Unknown time"}</div>
                 <div style={s.alertBody}>
                   <span style={{...s.alertVerdict, color: a.verdict==='BLOCK'?'#ef4444':'#5dcaa5'}}>{a.verdict}</span>
                   <span style={s.alertTool}>{a.tool_name}</span>
@@ -156,19 +165,7 @@ export default function MetricsDashboard() {
 }
 
 function StatCard({ label, value, color, unit, glow }) {
-  // Jitter Engine: Only jitter for real-time gauges, not cumulative counters
-  const [jitter, setJitter] = useState(0);
-  const isLiveMetric = unit === "ms" || unit === "events";
-
-  useEffect(() => {
-    if (!isLiveMetric) return;
-    const iv = setInterval(() => {
-      setJitter((Math.random() - 0.5) * 0.05);
-    }, 800 + Math.random() * 400);
-    return () => clearInterval(iv);
-  }, [isLiveMetric]);
-
-  const displayVal = typeof value === 'number' ? (value + jitter) : (parseFloat(value) || 0);
+  const displayVal = Number(value) || 0;
   const isLatency = unit === "ms";
   
   return (

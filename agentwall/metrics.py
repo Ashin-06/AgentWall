@@ -98,6 +98,24 @@ class MetricsRegistry:
         """Returns seconds since registry initialization."""
         return time.time() - self._start_time
 
+    def performance(self, queue_size: int = 0) -> dict:
+        """Latency percentiles in milliseconds over retained observations."""
+        import math
+        samples = sorted(
+            value * 1000
+            for key, values in list(self._histograms.items())
+            if key.startswith("agentwall_latency_seconds#")
+            for value in list(values)
+        )
+        def percentile(fraction):
+            return samples[max(0, math.ceil(len(samples) * fraction) - 1)] if samples else 0
+        return {
+            "latency": {"p50": percentile(0.50), "p95": percentile(0.95), "p99": percentile(0.99)},
+            "sample_count": len(samples),
+            "queue_size": queue_size,
+            "uptime": self.uptime(),
+        }
+
     def render(self) -> str:
         lines = []
         for name, counters in self._counters.items():

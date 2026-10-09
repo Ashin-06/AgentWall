@@ -42,7 +42,7 @@ export default function SessionReplay({ events, sessionId }) {
   // Keyboard navigation (Issue 5)
   useEffect(() => {
     const handler = (e) => {
-      if (!events_safe.length) return;
+      if (!events_safe.length || e.target.closest("input, textarea, select, [contenteditable]")) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIdx(i => Math.min(i + 1, events_safe.length - 1));
@@ -85,7 +85,7 @@ export default function SessionReplay({ events, sessionId }) {
 
   return (
     <div style={s.container}>
-      <header style={s.header}>
+      <header className="replay-header" style={s.header}>
         <div style={s.sessionInfo}>
           <h3 style={s.title}>Forensic Playback</h3>
           <span style={s.sid}>Session: {sessionId}</span>
@@ -122,9 +122,9 @@ export default function SessionReplay({ events, sessionId }) {
 
       <div style={s.hint}>↑ ↓ arrow keys to step · Click minimap to jump</div>
 
-      <div style={s.main}>
+      <div className="replay-main" style={s.main}>
         {/* Timeline list */}
-        <div style={s.timeline}>
+        <div className="replay-timeline" style={s.timeline}>
           {events_safe.map((event, idx) => (
             <div
               key={idx}

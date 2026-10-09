@@ -85,15 +85,8 @@ class DBWriteQueue:
                     wait = 0.5 + (i * 0.1)
                     print(f"[DBWriteQueue] [LOCK] Database locked (attempt {i+1}/15). Retrying in {wait}s...")
                     
-                    # [AUTO-RELEASE] (Issue 14)
-                    if i == 3: # On 4th failure, try aggressive release
-                        print("[DBWriteQueue] [RECOVERY] Attempting Auto-Release of zombie handles...")
-                        import subprocess
-                        my_pid = os.getpid()
-                        # Kill any other python processes that might be holding the lock
-                        subprocess.run(f'taskkill /F /FI "PID ne {my_pid}" /IM python.exe', shell=True, capture_output=True)
-                        time.sleep(1.0)
-                    
+                    # The lock may belong to unrelated work. Retry without
+                    # terminating processes; report the error if it persists.
                     time.sleep(wait)
                     continue
                 raise e
@@ -177,7 +170,6 @@ class DBWriteQueue:
             (self._prev_hash + event_data).encode(),
             hashlib.sha256,
         ).hexdigest()
-        self._prev_hash = chain_hash
 
         self._con.execute("""
             INSERT INTO audit_events
@@ -190,6 +182,7 @@ class DBWriteQueue:
             json.dumps(arguments), verdict, reason, json.dumps(details), mitre_id,
             source_fmt, latency_ms, shadow_block, chain_hash, key_id, ts,
         ])
+        self._prev_hash = chain_hash
         return event_id
 
     def stop(self):

@@ -15,6 +15,7 @@ Implementation:
 Attack graph patterns come from MITRE ATT&CK for Enterprise (LLM adaptation).
 """
 import time
+import uuid
 from collections import defaultdict
 from typing import Any
 
@@ -143,7 +144,7 @@ class CausalGraphDetector:
         G = self._graphs[session_id]
 
         # Add node
-        node_id = f"{category}_{G.number_of_nodes()}"
+        node_id = f"{category}_{uuid.uuid4().hex}"
         G.add_node(node_id, tool=tool, category=category, ts=ts)
 
         # Add edge from previous call in session

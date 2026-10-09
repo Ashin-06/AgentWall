@@ -5,6 +5,7 @@ Intercepts tool calls AND sanitises tool outputs bidirectionally.
 import uuid
 import os
 import httpx
+from adapters.transport import post
 import anthropic
 
 # Configuration
@@ -35,7 +36,7 @@ class GuardedClient:
 
     def sanitise_tool_output(self, tool_name: str, output: str) -> str:
         """Call this after executing a tool, before returning result to agent."""
-        r = httpx.post(f"{AGENTWALL}/intercept/output", json={
+        r = post(f"{AGENTWALL}/intercept/output", json={
             "tool_name":  tool_name,
             "output":     output,
             "session_id": self._session_id,
@@ -48,7 +49,7 @@ class GuardedClient:
         return data["output"]
 
     def _intercept_call(self, block, context) -> dict:
-        r = httpx.post(f"{AGENTWALL}/intercept", json={
+        r = post(f"{AGENTWALL}/intercept", json={
             "type":       "tool_use",
             "id":         block.id,
             "name":       block.name,

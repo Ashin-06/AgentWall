@@ -13,6 +13,7 @@ Or per-agent:
 import uuid
 import os
 import httpx
+from adapters.transport import post
 
 # Configuration
 AGENTWALL = os.getenv("AGENTWALL_URL", "http://localhost:8000")
@@ -37,7 +38,7 @@ def patch_crewai(session_id: str = None, agent_id: str = "crewai-agent"):
             "agent_id":     agent_id,
         }
         try:
-            r      = httpx.post(f"{AGENTWALL}/intercept", json=payload, timeout=5.0)
+            r      = post(f"{AGENTWALL}/intercept", json=payload, timeout=5.0)
             result = r.json()
             if result["verdict"] == "BLOCK":
                 raise PermissionError(f"AgentWall blocked {self.name}: {result['reason']}")
@@ -48,7 +49,7 @@ def patch_crewai(session_id: str = None, agent_id: str = "crewai-agent"):
 
         # Sanitise output
         try:
-            r2 = httpx.post(f"{AGENTWALL}/intercept/output", json={
+            r2 = post(f"{AGENTWALL}/intercept/output", json={
                 "tool_name": self.name, "output": str(output),
                 "session_id": sid, "agent_id": agent_id,
             }, timeout=5.0)

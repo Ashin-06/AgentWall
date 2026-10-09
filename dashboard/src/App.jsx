@@ -9,6 +9,8 @@ import CampaignTimeline from "./components/CampaignTimeline";
 import MetricsDashboard from "./components/MetricsDashboard";
 import { createWSClient } from "./ws";
 import Login from "./components/Login";
+import { fetchJSON, agentName, filterSessions } from "./api.mjs";
+import "./dashboard.css";
 
 const API = "";
 const WS  = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws/intercept";
@@ -26,7 +28,16 @@ export default function App() {
   const [replayEvents, setReplay]   = useState([]);
   const [alerts, setAlerts]         = useState([]);
   const [wsStatus, setWSStatus]     = useState("connecting");
-  const wsRef = useRef(null);
+  const refreshController = useRef(null);
+  const replayController = useRef(null);
+  const [query, setQuery] = useState("");
+  const [paused, setPaused] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [error, setError] = useState("");
+  const [replayLoading, setReplayLoading] = useState(false);
+  const [replayError, setReplayError] = useState("");
+  const [securityStatus, setSecurityStatus] = useState(null);
 
   const [filterAgent, setFilterAgent] = useState(null);
 
@@ -43,71 +54,96 @@ export default function App() {
     localStorage.setItem("agentwall_token", token);
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
+    refreshController.current?.abort();
+    replayController.current?.abort();
+    setSessions([]); setViolations([]); setRiskScores([]);
+    setCampaigns([]); setMitreData([]); setGraphData({});
+    setReplay([]); setActive(null); setAlerts([]); setLastUpdated(null);
+    setError(""); setReplayError(""); setQuery(""); setFilterAgent(null);
+    setRefreshing(false); setReplayLoading(false); setPaused(false);
+    setSecurityStatus(null);
+    setTab("overview");
     setToken(null);
     localStorage.removeItem("agentwall_token");
-  };
+  }, []);
 
   // ── WebSocket for real-time alerts ──────────────────────────────────────
   useEffect(() => {
     if (!token) return;
+    setWSStatus("connecting");
     const ws = createWSClient(WS, {
       token,
       onOpen:    ()    => { setWSStatus("connected"); ws.send({type:"subscribe"}); },
       onClose:   ()    => setWSStatus("disconnected"),
       onMessage: (msg) => {
-        if (msg.type === "alert") {
+        if (msg.type === "alert" && msg.event) {
           setAlerts(prev => [msg.event, ...prev].slice(0, 100));
         }
       },
     });
-    wsRef.current = ws;
+
     return () => ws.close();
   }, [token]);
 
   // ── REST polling ────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
     if (!token) return;
-    const headers = { "Authorization": `Bearer ${token}` };
-    
-    // Split fetches: Core metrics (fast) vs Graph data (heavy)
-    const coreFetches = [
-      fetch(`${API}/api/sessions?limit=1000`, {headers}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/api/violations?limit=1000`, {headers}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/api/risk-scores`, {headers}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/api/campaigns`, {headers}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/api/mitre-heatmap`, {headers}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-    ];
-
-    if (tab === "graph") {
-      coreFetches.push(fetch(`${API}/api/attack-graph`, {headers}).then(r=>r.ok?r.json():{}).catch(()=>({})));
+    refreshController.current?.abort();
+    const controller = new AbortController();
+    refreshController.current = controller;
+    setRefreshing(true);
+    const paths = ["sessions?limit=1000", "violations?limit=1000", "risk-scores", "campaigns", "mitre-heatmap", "security-status"];
+    if (tab === "graph") paths.push("attack-graph");
+    try {
+      const results = await Promise.all(paths.map(path => fetchJSON(`${API}/api/${path}`, token, controller.signal)));
+      if (controller.signal.aborted) return;
+      if (!results.slice(0, 5).every(Array.isArray)) throw new Error("Unexpected server data. Please retry.");
+      const [s, v, r, c, m, status, g] = results;
+      setSessions(s); setViolations(v); setRiskScores(r);
+      setCampaigns(c); setMitreData(m);
+      setSecurityStatus(status);
+      if (g) setGraphData(g);
+      setLastUpdated(new Date()); setError("");
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      if (err.status === 401) handleLogout();
+      else setError(`${err.message} Showing the last successfully loaded data.`);
+    } finally {
+      if (!controller.signal.aborted) setRefreshing(false);
     }
+  }, [token, tab, handleLogout]);
 
-    const results = await Promise.all(coreFetches);
-    const [s, v, r, c, m, g] = results;
-    
-    if (results.some(x => x?.detail === "Invalid or expired token")) {
-      handleLogout();
-      return;
-    }
-
-    setSessions(s); setViolations(v); setRiskScores(r);
-    setCampaigns(c); setMitreData(m); 
-    if (g) setGraphData(g);
-  }, [token, tab]);
-
-  useEffect(() => { 
-    refresh(); 
-    const iv = setInterval(refresh, 10000); 
-    return ()=>clearInterval(iv); 
+  useEffect(() => {
+    refresh();
+    return () => refreshController.current?.abort();
   }, [refresh]);
 
+  useEffect(() => {
+    if (paused) return;
+    const iv = setInterval(refresh, 10000);
+    return () => clearInterval(iv);
+  }, [refresh, paused]);
+
+  useEffect(() => () => replayController.current?.abort(), []);
+
   const openSession = async (sid) => {
-    setActive(sid);
-    const headers = { "Authorization": `Bearer ${token}` };
-    const events = await fetch(`${API}/api/sessions/${sid}`, {headers}).then(r=>r.json()).catch(()=>[]);
-    setReplay(events);
-    setTab("replay");
+    replayController.current?.abort();
+    const controller = new AbortController();
+    replayController.current = controller;
+    setActive(sid); setReplay([]); setReplayError(""); setReplayLoading(true); setTab("replay");
+    try {
+      const events = await fetchJSON(`${API}/api/sessions/${encodeURIComponent(sid)}`, token, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!Array.isArray(events)) throw new Error("Unexpected session data.");
+      setReplay(events);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      if (err.status === 401) handleLogout();
+      else setReplayError(err.message);
+    } finally {
+      if (!controller.signal.aborted) setReplayLoading(false);
+    }
   };
 
   if (!token) {
@@ -118,9 +154,9 @@ export default function App() {
   const violations_safe = Array.isArray(violations) ? violations : [];
   const campaigns_safe = Array.isArray(campaigns) ? campaigns : [];
 
-  const uniqueAgents = Array.from(new Set(sessions_safe.map(s => (s.agent_id || "unknown").trim())));
-  const filteredSessions = filterAgent ? sessions_safe.filter(s => (s.agent_id || "unknown").trim() === filterAgent) : sessions_safe;
-  const filteredViolations = filterAgent ? violations_safe.filter(v => (v.agent_id || "unknown").trim() === filterAgent) : violations_safe;
+  const uniqueAgents = Array.from(new Set(sessions_safe.map(s => agentName(s))));
+  const filteredSessions = filterSessions(sessions_safe, filterAgent, query);
+  const filteredViolations = filterAgent ? violations_safe.filter(v => agentName(v) === filterAgent) : violations_safe;
 
   const totalBlocks = violations_safe.filter(v=>v.verdict==="BLOCK").length;
   const totalAudits = violations_safe.filter(v=>v.verdict==="AUDIT").length;
@@ -139,15 +175,15 @@ export default function App() {
             {wsStatus}
           </div>
         </div>
-        <div style={s.headerStats}>
+        <div className="dashboard-stats" style={s.headerStats}>
           <Stat label="Live Sessions" value={sessions_safe.length}  color="#60a5fa" />
           <Stat label="Total Blocked" value={totalBlocks}      color="#f09999" pulse={totalBlocks > 0} />
-          <Stat label="Risk Level"    value={activeCampaigns > 0 ? "HIGH" : "SAFE"} color={activeCampaigns > 0 ? "#fb923c" : "#5dcaa5"} pulse={activeCampaigns > 0} />
+          <Stat label="Risk Level"    value={!lastUpdated || error ? "UNKNOWN" : activeCampaigns > 0 ? "HIGH" : "SAFE"} color={activeCampaigns > 0 ? "#fb923c" : "#5dcaa5"} pulse={activeCampaigns > 0} />
           <Stat label="Campaigns"     value={activeCampaigns}  color="#c084fc" />
         </div>
-        <nav style={s.nav}>
+        <nav className="dashboard-nav" aria-label="Dashboard sections" style={s.nav}>
           {["overview","replay","graph","mitre","campaigns","metrics"].map(t => (
-            <button key={t} onClick={()=>setTab(t)}
+            <button key={t} aria-current={tab === t ? "page" : undefined} onClick={()=>setTab(t)}
               style={{...s.navBtn, ...(tab===t ? s.navActive : {}),
                       ...(t==="metrics" ? {borderColor:"#5dcaa5", color: tab==="metrics"?"#5dcaa5":"#5dcaa550"} : {})}}>
               {t === "metrics" ? "Metrics" : t.charAt(0).toUpperCase()+t.slice(1)}
@@ -156,6 +192,20 @@ export default function App() {
         </nav>
       </header>
 
+      <div className="dashboard-toolbar">
+        <input aria-label="Search sessions" placeholder="Search sessions by agent or session ID" value={query} onChange={e => { setQuery(e.target.value); setTab("overview"); }} />
+        <button onClick={refresh} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh now"}</button>
+        <button aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? "Resume auto-refresh" : "Pause auto-refresh"}</button>
+        <span role="status">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Waiting for data"}{paused ? " · Overview polling paused; live alerts continue" : " · Overview refreshes every 10 seconds"}</span>
+        <button onClick={handleLogout}>Sign out</button>
+      </div>
+      {error && <div className="dashboard-error" role="alert">{error}</div>}
+      {securityStatus && <div className="dashboard-toolbar" role="status">
+        <span>Tool-call policy: <strong>{error ? "Status unavailable" : securityStatus.enforcement_mode === "enforce" ? "Enforcement enabled" : "Observe only — calls are not blocked"}</strong></span>
+        <span>Authentication: {securityStatus.authentication_enabled ? "Enabled" : "Disabled"}</span>
+        <span>Profile: {securityStatus.policy_profile}</span>
+        {!securityStatus.gateway_policy_enforced && <span>LLM gateway: monitoring only</span>}
+      </div>}
       {/* Real-time alert strip */}
       {alerts.length > 0 && (
         <div style={s.alertStrip}>
@@ -169,9 +219,9 @@ export default function App() {
       )}
 
       {/* Tab content */}
-      <div style={s.content}>
+      <div className="dashboard-content" style={s.content}>
         {tab === "overview" && (
-          <div style={s.overviewGrid}>
+          <div className="overview-grid" style={s.overviewGrid}>
             <div style={s.agentSidebar}>
                <h3 style={s.sidebarTitle}>Agent Intelligence</h3>
                <button onClick={() => setFilterAgent(null)} style={{...s.agentItem, ...(filterAgent === null ? s.agentActive : {})}}>
@@ -179,7 +229,7 @@ export default function App() {
                </button>
                {uniqueAgents.map(a => (
                  <button key={a} onClick={() => setFilterAgent(a)} style={{...s.agentItem, ...(filterAgent === a ? s.agentActive : {})}}>
-                    {a} <span style={s.agentCount}>{sessions_safe.filter(s => s.agent_id === a).length}</span>
+                    {a} <span style={s.agentCount}>{sessions_safe.filter(s => agentName(s) === a).length}</span>
                  </button>
                ))}
             </div>
@@ -189,7 +239,7 @@ export default function App() {
           </div>
         )}
         {tab === "replay" && (
-          <SessionReplay events={replayEvents} sessionId={activeSession} apiBase={API} />
+          replayLoading ? <p role="status">Loading session events…</p> : replayError ? <div role="alert">{replayError} <button onClick={() => openSession(activeSession)}>Retry</button></div> : <SessionReplay key={activeSession} events={replayEvents} sessionId={activeSession} apiBase={API} />
         )}
         {tab === "graph" && (
           <AttackGraph data={graphData} />
@@ -201,7 +251,7 @@ export default function App() {
           <CampaignTimeline campaigns={campaigns_safe} />
         )}
         {tab === "metrics" && (
-          <MetricsDashboard />
+          <MetricsDashboard token={token} onUnauthorized={handleLogout} />
         )}
       </div>
     </div>

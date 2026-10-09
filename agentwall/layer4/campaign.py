@@ -46,9 +46,12 @@ class CampaignDetector:
         self._r = None
         if redis and self.redis_url:
             try:
-                self._r = redis.from_url(self.redis_url, decode_responses=True)
-                print(f"[CampaignDetector] Connected to Redis at {self.redis_url}")
+                self._r = redis.from_url(self.redis_url, decode_responses=True,
+                                         socket_connect_timeout=1, socket_timeout=1)
+                self._r.ping()
+                print("[CampaignDetector] Connected to Redis")
             except Exception as e:
+                self._r = None
                 print(f"[CampaignDetector] [FALLBACK] Redis failed: {e}")
         
         self._local_attempts = deque(maxlen=1000) # Fallback
@@ -72,9 +75,11 @@ class CampaignDetector:
         }
 
         if self._r:
-            return self._cluster_redis(attempt)
-        else:
-            return self._cluster_local(attempt)
+            try:
+                return self._cluster_redis(attempt)
+            except redis.RedisError:
+                self._r = None
+        return self._cluster_local(attempt)
 
     def _cluster_redis(self, attempt: dict) -> Optional[dict]:
         # Store attempt in a rolling window set

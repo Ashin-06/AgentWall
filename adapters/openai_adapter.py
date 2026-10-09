@@ -11,6 +11,7 @@ import uuid
 import json
 import os
 import httpx
+from adapters.transport import post
 from openai import OpenAI
 
 # Configuration
@@ -42,7 +43,7 @@ class GuardedOpenAI:
         return response
 
     def sanitise_output(self, tool_name: str, output: str) -> str:
-        r = httpx.post(f"{AGENTWALL}/intercept/output", json={
+        r = post(f"{AGENTWALL}/intercept/output", json={
             "tool_name":  tool_name,
             "output":     output,
             "session_id": self._session_id,
@@ -56,7 +57,7 @@ class GuardedOpenAI:
     def _intercept(self, tc) -> dict:
         try:    args = json.loads(tc.function.arguments)
         except: args = {"raw": tc.function.arguments}
-        r = httpx.post(f"{AGENTWALL}/intercept", json={
+        r = post(f"{AGENTWALL}/intercept", json={
             "type":       "function",
             "id":         tc.id,
             "function":   {"name": tc.function.name, "arguments": args},

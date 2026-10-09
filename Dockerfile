@@ -1,3 +1,10 @@
+FROM node:22-slim AS dashboard
+WORKDIR /dashboard
+COPY dashboard/package*.json ./
+RUN npm ci
+COPY dashboard/ ./
+RUN npm run build
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
@@ -18,6 +25,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY agentwall/ ./agentwall/
 COPY config/    ./config/
+COPY --from=dashboard /dashboard/dist/ ./dashboard/dist/
 # COPY evals/     ./evals/ # Placeholder for future benchmark suite
 
 RUN mkdir -p /data/models /data/db

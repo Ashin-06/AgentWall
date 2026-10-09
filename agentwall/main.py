@@ -5,14 +5,14 @@ import os
 from dotenv import load_dotenv
 _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 if os.path.exists(_env_path):
-    load_dotenv(_env_path, override=True)
+    load_dotenv(_env_path, override=False)
     print(f"[Config] Loaded .env from {_env_path}")
 
 import asyncio
 import json
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -20,7 +20,7 @@ from agentwall.proxy import AgentWallProxy
 from agentwall.audit.schema import init_db
 from agentwall.audit.logger import AuditLogger
 from agentwall.shadow import ShadowMode
-from agentwall.auth import require_auth, create_jwt, AUTH_ENABLED
+from agentwall.auth import require_auth, create_jwt, AUTH_ENABLED, JWT_TTL
 from agentwall.metrics import MetricsRegistry
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
@@ -44,9 +44,18 @@ class InterceptRequest(BaseModel):
     tool_name: str
     arguments: Dict[str, Any]
     source_fmt: Optional[str] = "unknown"
+    context: Optional[str] = None
+
+class OutputRequest(BaseModel):
+    output: str
+    session_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    tool_name: Optional[str] = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from agentwall.auth import validate_production_config
+    validate_production_config()
     # Initialize DB
     init_db()
     
@@ -116,6 +125,10 @@ app.mount("/assets", StaticFiles(directory=os.path.join(final_static_path, "asse
 async def root():
     return FileResponse(os.path.join(final_static_path, "index.html"))
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 active_connections = set()
 
 @app.websocket("/ws/intercept")
@@ -139,17 +152,29 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
 async def login(req: LoginRequest):
     admin_pw = os.getenv("AGENTWALL_ADMIN_PASSWORD", "admin")
     if req.password == admin_pw:
-        return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": 3600}
+        return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": JWT_TTL}
     raise HTTPException(status_code=401, detail="Invalid password")
 
 @app.post("/intercept")
-async def intercept(request: Request, body: InterceptRequest):
+@app.post("/intercept/langchain")
+async def intercept(request: Request, body: Dict[str, Any], auth=Depends(require_auth)):
+    from agentwall.interceptor import normalise_raw
+    from pydantic import ValidationError
+    try:
+        normalised = normalise_raw(body)
+        call = InterceptRequest(**normalised)
+    except (KeyError, TypeError, ValueError, ValidationError):
+        raise HTTPException(status_code=422, detail="Invalid tool-call payload")
     # Route through ShadowMode wrapper which handles the evaluation
-    res = await app.state.proxy.observe(body.dict())
+    res = await app.state.proxy.observe(call.model_dump())
     return res
 
+@app.post("/intercept/output")
+async def sanitise_output(body: OutputRequest, auth=Depends(require_auth)):
+    return await app.state.proxy.proxy.sanitise_output(body.model_dump())
+
 @app.get("/api/sessions")
-async def list_sessions(limit: int = 1000, auth=Depends(require_auth)):
+async def list_sessions(limit: int = Query(1000, ge=1, le=1000), auth=Depends(require_auth)):
     from agentwall.audit.schema import get_sessions
     return get_sessions(limit=limit)
 
@@ -159,7 +184,7 @@ async def get_session_events(session_id: str, auth=Depends(require_auth)):
     return get_session_events(session_id)
 
 @app.get("/api/violations")
-async def list_violations(limit: int = 1000, auth=Depends(require_auth)):
+async def list_violations(limit: int = Query(1000, ge=1, le=1000), auth=Depends(require_auth)):
     from agentwall.audit.schema import get_violations
     return get_violations(limit=limit)
 
@@ -180,18 +205,32 @@ async def get_mitre_heatmap(auth=Depends(require_auth)):
 
 @app.get("/api/attack-graph")
 async def get_attack_graph(auth=Depends(require_auth)):
-    # Fallback to empty graph if no data
-    return {"nodes": [], "edges": []}
+    return app.state.proxy.proxy.causal.export_graph()
+
+@app.get("/api/security-status")
+async def security_status(auth=Depends(require_auth)):
+    from agentwall.auth import AUTH_ENABLED
+    return {
+        "authentication_enabled": AUTH_ENABLED,
+        "enforcement_mode": "observe" if app.state.proxy.enabled else "enforce",
+        "policy_profile": app.state.proxy.proxy._variant,
+        "gateway_policy_enforced": False,
+    }
 
 @app.get("/metrics")
 async def metrics():
     return PlainTextResponse(MetricsRegistry.get().export())
 
+@app.get("/api/performance")
+async def performance(auth=Depends(require_auth)):
+    from agentwall.audit.write_queue import DBWriteQueue
+    return MetricsRegistry.get().performance(DBWriteQueue.get().queue_size())
+
 # Universal AI Gateway (OpenAI, Claude, Gemini compatible)
 @app.post("/v1/chat/completions")
 @app.post("/v1/messages")
 @app.post("/v1/proxy/{target_host:path}")
-async def universal_gateway(request: Request, target_host: str = "api.openai.com"):
+async def universal_gateway(request: Request, target_host: str = "api.openai.com", auth=Depends(require_auth)):
     body = await request.json()
     agent_id = request.headers.get("X-AgentWall-Agent", "browser_intercept")
     session_id = request.headers.get("X-AgentWall-Session", f"SESS_{int(time.time())}")
@@ -204,7 +243,7 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
     from agentwall.audit.write_queue import DBWriteQueue
     await DBWriteQueue.get().write((
         session_id, agent_id, f"gen_{int(time.time())}", f"{protocol}_call",
-        body, "PERMIT", f"Intercepted via {protocol.upper()} Gateway", 
+        body, "AUDIT", f"Observed via {protocol.upper()} Gateway (policy not enforced)",
         {"target": target_host}, "T1059", "gateway", 0, False, protocol
     ))
 

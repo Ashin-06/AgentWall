@@ -11,7 +11,8 @@ export default function SessionList({ sessions, onSelect, activeSession }) {
           const riskColor = sess.blocks > 2  ? "#f09999" :
                             sess.audits > 5  ? "#f0c875" : "#5dcaa5";
           return (
-            <div key={sess.session_id}
+            <div key={sess.session_id} role="button" tabIndex={0}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(sess.session_id); } }}
               onClick={() => onSelect(sess.session_id)}
               style={{
                 ...s.row,

@@ -35,7 +35,7 @@ class AgentWallProxy:
         self._trust_graph = None
         self._campaign    = None
         self._mitre       = None
-        self._classifier  = None
+        self._injection   = None
         self._explainer   = None
         self._rbac        = None
         self._honey       = None
@@ -48,7 +48,7 @@ class AgentWallProxy:
         
         self._injection_failure_rate = 0.0  # Distributed failure tracker (Circuit Breaker)
         self._start_time = time.time()      # Tracking warm-up window (Issue 2)
-        self._shadow_mode_active = os.getenv("AGENTWALL_SHADOW_MODE", "1") == "1"
+        self._shadow_mode_active = os.getenv("AGENTWALL_SHADOW_MODE", "0") == "1"
         self._system_lockdown_active = False
         self._lockdown_reason = ""
         self._total_calls_seen = 0
@@ -109,7 +109,7 @@ class AgentWallProxy:
     def injection(self):
         if self._injection is None:
             from agentwall.layer3.injection import LLMInjectionClassifier
-            self._injection = LLMInjectionClassifier.instance()
+            self._injection = LLMInjectionClassifier()
         return self._injection
 
     @property
@@ -186,30 +186,6 @@ class AgentWallProxy:
     def redis(self):
         return self.trust_graph._r if self.trust_graph.redis_url else None
         
-        # [AUDIT v3 FIX] Production Secret Enforcement
-        if os.getenv("AGENTWALL_ENV") == "production":
-            defaults = {
-                "AGENTWALL_HMAC_KEY": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc",
-                "AGENTWALL_JWT_SECRET": "change-this-in-production-1234567890",
-                "AGENTWALL_ADMIN_PASSWORD": "admin-password-change-me"
-            }
-            for k, v in defaults.items():
-                val = os.getenv(k)
-                if val == v or not val or len(val) < 16:
-                    print(f"[FATAL] Default, weak, or missing secret detected: {k}. Use a strong, unique value in production.")
-                    import sys
-                    sys.exit(1)
-        
-        # 90% Production Readiness: Auto-Baseline Mode
-        # If enabled, proxy will only AUDIT for the first N calls to build baseline
-        self.auto_baseline_calls = int(os.getenv("AGENTWALL_AUTO_BASELINE_N", "0"))
-        self._total_calls_seen = 0
-        
-        # 95% Production Readiness: Dynamic Safety Lockdown
-        # If campaign detector identifies high-risk activity, lockdown the entire system
-        self._system_lockdown_active = False
-        self._lockdown_reason = ""
-
     async def evaluate(self, raw_payload: dict) -> dict:
         t_start = time.perf_counter()
         t_eval  = {}
@@ -406,7 +382,7 @@ class AgentWallProxy:
         try:
             res = await self.injection.analyse(call)
             self._injection_failure_rate *= 0.85
-            return res
+            return {**res, "reasoning": res.get("reasoning") or ", ".join(res.get("matches", [])) or "Semantic analysis"}
         except Exception as e:
             self._injection_failure_rate = min(1.0, self._injection_failure_rate + 0.2)
             return {"score": 0.6, "reasoning": f"Fallback: Semantic engine failure ({e})"}

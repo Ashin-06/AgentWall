@@ -10,7 +10,6 @@ Use this during rollout to:
   3. Identify false positives before going live
   4. Build the Isolation Forest on real traffic before enforcing anomaly detection
 
-Enable per-request: set header X-AgentWall-Shadow: true
 Enable globally: set env AGENTWALL_SHADOW_MODE=1
 """
 import os
@@ -24,6 +23,10 @@ class ShadowMode:
     async def observe(self, payload: dict) -> dict:
         """Run full evaluation but override any BLOCK to SHADOW_BLOCK."""
         result = await self.proxy.evaluate(payload)
+        result = dict(result)
+        if not self.enabled:
+            result["shadow_mode"] = False
+            return result
         original_verdict = result["verdict"]
 
         if original_verdict == "BLOCK":

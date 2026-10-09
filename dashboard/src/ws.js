@@ -12,16 +12,17 @@ export function createWSClient(url, { onOpen, onClose, onMessage, token }) {
       console.warn("[WS] Aborting connection: No security token provided.");
       return;
     }
-    const finalUrl = `${url}?token=${token}`;
+    const finalUrl = `${url}?token=${encodeURIComponent(token)}`;
     ws = new WebSocket(finalUrl);
-    ws.onopen    = () => { onOpen?.(); };
+    ws.onopen    = () => { if (!closed) onOpen?.(); };
     ws.onclose   = () => {
-      onClose?.();
+      if (!closed) onClose?.();
       if (!closed) {
         reconnectTimer = setTimeout(connect, 3000);
       }
     };
     ws.onmessage = (e) => {
+      if (closed) return;
       try { onMessage?.(JSON.parse(e.data)); }
       catch {}
     };

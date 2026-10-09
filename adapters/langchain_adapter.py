@@ -18,6 +18,7 @@ import uuid
 import json
 import os
 import httpx
+from adapters.transport import post
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.tools import BaseTool
 
@@ -44,7 +45,7 @@ class AgentWallCallback(BaseCallbackHandler):
             "agent_id":   self.agent_id,
         }
         try:
-            r      = httpx.post(f"{AGENTWALL}/intercept/langchain", json=payload, timeout=5.0)
+            r      = post(f"{AGENTWALL}/intercept/langchain", json=payload, timeout=5.0)
             result = r.json()
             if result["verdict"] == "BLOCK":
                 raise PermissionError(
@@ -59,7 +60,7 @@ class AgentWallCallback(BaseCallbackHandler):
     def on_tool_end(self, output: str, **kwargs):
         """Sanitise tool output before it goes back to the agent."""
         try:
-            r    = httpx.post(f"{AGENTWALL}/intercept/output", json={
+            r    = post(f"{AGENTWALL}/intercept/output", json={
                 "output": output, "session_id": self.session_id, "agent_id": self.agent_id,
             }, timeout=5.0)
             data = r.json()
@@ -89,7 +90,7 @@ def guarded_tool(tool: BaseTool, session_id: str = None,
             "tool": tool.name, "tool_input": tool_input_dict,
             "session_id": sid, "agent_id": agent_id,
         }
-        r      = httpx.post(f"{AGENTWALL}/intercept/langchain", json=payload, timeout=5.0)
+        r      = post(f"{AGENTWALL}/intercept/langchain", json=payload, timeout=5.0)
         result = r.json()
         if result["verdict"] == "BLOCK":
             raise PermissionError(f"AgentWall blocked {tool.name}: {result['reason']}")
@@ -98,7 +99,7 @@ def guarded_tool(tool: BaseTool, session_id: str = None,
         output = original_run(*args, **kwargs)
 
         # Sanitise output
-        r2   = httpx.post(f"{AGENTWALL}/intercept/output", json={
+        r2   = post(f"{AGENTWALL}/intercept/output", json={
             "tool_name": tool.name, "output": str(output),
             "session_id": sid, "agent_id": agent_id,
         }, timeout=5.0)

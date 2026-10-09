@@ -13,6 +13,7 @@ import time
 import base64
 import json
 import jwt
+import secrets
 from functools import wraps
 from typing import Optional
 
@@ -21,16 +22,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # ── Config ────────────────────────────────────────────────────────────────────
 # Comma-separated list of valid API keys
-_RAW_KEYS  = os.getenv("AGENTWALL_API_KEYS", "agentwall_dev_key")
+_RAW_KEYS  = os.getenv("AGENTWALL_API_KEYS", "")
 API_KEYS   = set(k.strip() for k in _RAW_KEYS.split(",") if k.strip())
 
 # JWT Configuration
 JWT_SECRET = os.getenv("AGENTWALL_JWT_SECRET")
 if not JWT_SECRET:
-    # Use a stable secret for development to prevent session invalidation on restart.
-    # PRODUCTION: Always set AGENTWALL_JWT_SECRET environment variable.
-    JWT_SECRET = "agentwall-dev-stable-secret-2024"
-    print("[Security] [DEV] Using stable fallback JWT secret.")
+    JWT_SECRET = secrets.token_urlsafe(48)
+    print("[Security] Using an ephemeral JWT secret; sessions expire on restart.")
 
 JWT_TTL    = int(os.getenv("AGENTWALL_JWT_TTL", "3600"))  # seconds
 
@@ -39,6 +38,27 @@ JWT_TTL    = int(os.getenv("AGENTWALL_JWT_TTL", "3600"))  # seconds
 AUTH_ENABLED = os.getenv("AGENTWALL_AUTH_ENABLED", "1") == "1"
 
 _bearer = HTTPBearer(auto_error=False)
+
+
+def validate_production_config():
+    """Fail startup before serving traffic with known development credentials."""
+    if os.getenv("AGENTWALL_ENV") != "production":
+        return
+    placeholders = {
+        "admin", "admin-password-change-me", "change-this-in-production-1234567890",
+        "agentwall-dev-stable-secret-2024", "agentwall_dev_key", "key-1", "key-2", "key-3",
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abc",
+    }
+    for name, minimum in (("AGENTWALL_JWT_SECRET", 32), ("AGENTWALL_HMAC_KEY", 32),
+                          ("AGENTWALL_ADMIN_PASSWORD", 16)):
+        value = os.getenv(name, "")
+        if len(value) < minimum or value in placeholders:
+            raise RuntimeError(f"Set a private, strong {name} before starting production")
+    keys = [key.strip() for key in os.getenv("AGENTWALL_API_KEYS", "").split(",") if key.strip()]
+    if any(len(key) < 32 or key in placeholders for key in keys):
+        raise RuntimeError("AGENTWALL_API_KEYS contains weak or example credentials")
+    if not AUTH_ENABLED:
+        raise RuntimeError("Authentication must be enabled in production")
 
 
 # ── JWT (minimal, no external deps) ──────────────────────────────────────────
@@ -53,7 +73,8 @@ def create_jwt(payload: dict) -> str:
 def verify_jwt(token: str) -> Optional[dict]:
     """Standard JWT verification using PyJWT."""
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return jwt.decode(token, JWT_SECRET, algorithms=["HS256"],
+                          options={"require": ["exp", "iat", "sub"]})
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
 
