@@ -159,7 +159,7 @@ cp .env.example .env  # edit as needed
 ### Start the Server
 
 ```bash
-python -m uvicorn agentwall.main:app --host 0.0.0.0 --port 8000 --ws websockets
+python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8000 --ws websockets
 ```
 
 ### Point Your Agent at AgentWall
@@ -170,7 +170,32 @@ from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="your-key")
 ```
 
-The dashboard is available at `http://localhost:8000` (default password: `admin`).
+The dashboard is available at `http://localhost:8000`. Sign in with the
+`AGENTWALL_ADMIN_PASSWORD` configured in your `.env` file.
+
+### Run with Docker Compose
+
+Copy `.env.example` to `.env` and replace the example credentials before starting.
+Generate a separate value for each of `AGENTWALL_ADMIN_PASSWORD`,
+`AGENTWALL_API_KEYS` (one key is sufficient), `AGENTWALL_JWT_SECRET`, and
+`AGENTWALL_HMAC_KEY` by running this command four times:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+docker compose config --quiet
+docker compose up --build -d
+```
+
+Production startup rejects weak or example credentials. Compose requires all four
+values and enables authentication. The dashboard and API share
+`http://localhost:8000`; the image builds and serves the React dashboard itself.
+The published port binds to the local machine. Configure a TLS reverse proxy and
+network access controls before exposing it remotely.
+
+Audit data and models persist in the `agentwall-data` volume mounted at `/data`.
+If upgrading from an older deployment, back up the existing database and migrate
+it to `/data/db/agentwall.duckdb` before starting; the old project-directory bind
+mount is no longer used.
 
 ---
 
