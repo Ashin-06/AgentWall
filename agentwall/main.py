@@ -209,7 +209,6 @@ async def get_attack_graph(auth=Depends(require_auth)):
 
 @app.get("/api/security-status")
 async def security_status(auth=Depends(require_auth)):
-    from agentwall.auth import AUTH_ENABLED
     return {
         "authentication_enabled": AUTH_ENABLED,
         "enforcement_mode": "observe" if app.state.proxy.enabled else "enforce",

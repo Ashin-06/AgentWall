@@ -170,7 +170,7 @@ from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="your-key")
 ```
 
-The dashboard is available at `http://localhost:8000` (default password: `admin`).
+The dashboard is available at `http://localhost:8000`. The password is `AGENTWALL_ADMIN_PASSWORD` from your `.env`, or `admin` if that isn't set. Change it before anyone else can reach the server; `AGENTWALL_ENV=production` refuses to start with a weak one.
 
 ---
 

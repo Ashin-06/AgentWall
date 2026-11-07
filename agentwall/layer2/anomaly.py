@@ -51,6 +51,7 @@ class TemporalAnomalyDetector:
         elif self.redis_url:
             print("[AnomalyDetector] WARNING: REDIS_URL set but 'redis' package not installed. Using local cache.")
 
+        self._local: dict[str, deque] = defaultdict(lambda: deque(maxlen=5000))  # used when Redis is not configured
         self._models: dict[str, list] = {}
         self._load_all()
 
@@ -58,13 +59,15 @@ class TemporalAnomalyDetector:
         if self._r:
             data = self._r.lrange(f"anomaly:history:{agent_id}", 0, -1)
             return [json.loads(d) for d in data]
-        return []
+        return list(self._local[agent_id])
 
     def _add_history(self, agent_id: str, entry: tuple):
         if self._r:
             self._r.lpush(f"anomaly:history:{agent_id}", json.dumps(entry))
             self._r.ltrim(f"anomaly:history:{agent_id}", 0, 4999)
             self._r.expire(f"anomaly:history:{agent_id}", 86400)
+        else:
+            self._local[agent_id].appendleft(entry)  # newest first, like the Redis list
 
     def score(self, call: dict) -> dict:
         agent_id = call["agent_id"]
@@ -72,7 +75,7 @@ class TemporalAnomalyDetector:
         self._add_history(agent_id, (features, call["tool_name"], call.get("timestamp", time.time())))
 
         # Auto-train logic (local cache check)
-        history_len = self._r.llen(f"anomaly:history:{agent_id}") if self._r else 0
+        history_len = self._r.llen(f"anomaly:history:{agent_id}") if self._r else len(self._local[agent_id])
         if agent_id not in self._models and history_len >= 80:
             self._train(agent_id)
 
@@ -80,6 +83,7 @@ class TemporalAnomalyDetector:
             return {"anomaly_score": 0.0, "status": "collecting", "n_samples": history_len}
 
         models = self._models[agent_id]
+        np, _ = get_iso_forest()
         X = np.array([features])
         scores = []
         weights = [0.5, 0.3, 0.2]
