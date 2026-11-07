@@ -4,6 +4,7 @@ Ensures anomaly baselines are shared across pods.
 """
 print("[Anomaly] Importing stdlib...")
 import math
+import re
 import time
 import joblib
 import os
@@ -52,6 +53,8 @@ class TemporalAnomalyDetector:
             print("[AnomalyDetector] WARNING: REDIS_URL set but 'redis' package not installed. Using local cache.")
 
         self._local: dict[str, deque] = defaultdict(lambda: deque(maxlen=5000))  # used when Redis is not configured
+        self._local_vocab: dict[str, dict] = defaultdict(dict)
+        self._local_sessions: dict[str, dict] = {}
         self._models: dict[str, list] = {}
         self._load_all()
 
@@ -133,9 +136,19 @@ class TemporalAnomalyDetector:
             history_ts = [h[2] for h in history]
             rates = [float(sum(1 for t in history_ts if ts - t < w)) for w in WINDOW_SIZES]
         else:
-            # Fallback for local
-            tool_idx = 0.0; last_idx = -1.0; call_count = 0.0; session_age = 0.0; rates = [0,0,0]
-            last_tool = "__START__"
+            # The same state, kept in this process
+            vocab = self._local_vocab[agent_id]
+            tool_idx = float(vocab.setdefault(tool_name, len(vocab)))
+            state = self._local_sessions.setdefault(session_id, {"last_tool": "__START__", "call_count": 0, "start_ts": ts})
+            last_tool = state["last_tool"]
+            last_idx = float(vocab.get(last_tool, -1))
+            call_count = float(state["call_count"])
+            session_age = ts - state["start_ts"]
+            state.update(last_tool=tool_name, call_count=state["call_count"] + 1)
+            if len(self._local_sessions) > 10000:
+                self._local_sessions.pop(next(iter(self._local_sessions)))
+            history_ts = [h[2] for h in self._get_history(agent_id)]
+            rates = [float(sum(1 for t in history_ts if ts - t < w)) for w in WINDOW_SIZES]
 
         arg_str = str(args)
         arg_hash = float(mmh3.hash(arg_str, signed=False) % 10000) / 10000.0
@@ -179,7 +192,8 @@ class TemporalAnomalyDetector:
         self._save(agent_id, models)
 
     def _save(self, agent_id: str, models):
-        path = MODEL_DIR / f"{agent_id}_ensemble.joblib"
+        safe_id = re.sub(r"[^A-Za-z0-9_.-]", "_", agent_id)  # agent IDs come from callers; keep them inside MODEL_DIR
+        path = MODEL_DIR / f"{safe_id}_ensemble.joblib"
         joblib.dump(models, path)
 
     def _load_all(self):

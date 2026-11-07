@@ -36,7 +36,7 @@ yarn-error.log*
 .vite
 
 # Dashboard Build (Include this if you want pre-built dashboard on GitHub)
-# !dashboard/dist/
+!dashboard/dist/
 
 # OS
 .DS_Store
