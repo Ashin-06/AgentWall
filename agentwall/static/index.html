@@ -29,6 +29,7 @@
     </div>
 
     <script>
+function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])); }
         const eventsDiv = document.getElementById('events');
         const statusDiv = document.getElementById('ws-status');
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -48,16 +49,16 @@
 
         function addEvent(ev) {
             const card = document.createElement('div');
-            card.className = `event-card ${ev.verdict}`;
+            card.className = `event-card ${esc(ev.verdict)}`;
             card.innerHTML = `
                 <div class="meta">
                     <span>${new Date(ev.timestamp * 1000).toLocaleTimeString()}</span>
-                    <span>Session: ${ev.session_id.slice(0,8)}</span>
-                    <span class="tool">${ev.tool_name}</span>
-                    ${ev.mitre_id ? `<span class="mitre">${ev.mitre_id}</span>` : ''}
+                    <span>Session: ${esc(ev.session_id.slice(0,8))}</span>
+                    <span class="tool">${esc(ev.tool_name)}</span>
+                    ${ev.mitre_id ? `<span class="mitre">${esc(ev.mitre_id)}</span>` : ''}
                 </div>
-                <div class="reason">${ev.verdict}: ${ev.reason}</div>
-                <div style="font-size:0.8em; color:#666">Latency: ${ev.latency_ms.toFixed(2)}ms | Agent: ${ev.agent_id}</div>
+                <div class="reason">${esc(ev.verdict)}: ${esc(ev.reason)}</div>
+                <div style="font-size:0.8em; color:#666">Latency: ${ev.latency_ms.toFixed(2)}ms | Agent: ${esc(ev.agent_id)}</div>
             `;
             eventsDiv.prepend(card);
             if (eventsDiv.children.length > 50) eventsDiv.lastChild.remove();
