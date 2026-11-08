@@ -2,6 +2,9 @@ print("[Audit] [BOOT] AgentWall Loading...")
 
 # Load .env BEFORE any other imports so all modules see the env vars
 import os
+import hmac
+import secrets
+
 from dotenv import load_dotenv
 _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 if os.path.exists(_env_path):
@@ -148,10 +151,14 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         try: await websocket.close(code=4003)
         except: pass
 
+ADMIN_PASSWORD = os.getenv("AGENTWALL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
+if not os.getenv("AGENTWALL_ADMIN_PASSWORD"):
+    print(f"[Security] AGENTWALL_ADMIN_PASSWORD is not set. Dashboard password for this run: {ADMIN_PASSWORD}")
+
+
 @app.post("/auth/login")
 async def login(req: LoginRequest):
-    admin_pw = os.getenv("AGENTWALL_ADMIN_PASSWORD", "admin")
-    if req.password == admin_pw:
+    if hmac.compare_digest(req.password.encode(), ADMIN_PASSWORD.encode()):
         return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": JWT_TTL}
     raise HTTPException(status_code=401, detail="Invalid password")
 
@@ -293,4 +300,4 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=os.getenv("AGENTWALL_HOST", "127.0.0.1"), port=8000)

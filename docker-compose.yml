@@ -1,24 +1,13 @@
-version: '3.8'
-
 services:
   agentwall:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"   # the dashboard is served here too
+    env_file: .env              # production refuses to start without strong secrets in it
     environment:
       - AGENTWALL_ENV=production
-      - AGENTWALL_ADMIN_PASSWORD=admin
       - AGENTWALL_AUTO_BASELINE_N=50
     volumes:
       - ./agentwall_v2.duckdb:/app/agentwall_v2.duckdb
       - ./config:/app/config
     restart: always
-
-  dashboard:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./dashboard/dist:/usr/share/nginx/html
-    depends_on:
-      - agentwall

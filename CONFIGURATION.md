@@ -10,7 +10,7 @@ Copy `.env.example` to `.env` to customize settings:
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `AGENTWALL_ADMIN_PASSWORD` | Password for the SOC Dashboard | `admin` |
+| `AGENTWALL_ADMIN_PASSWORD` | Password for the SOC Dashboard | random, printed at startup |
 | `AGENTWALL_UPSTREAM_KEY` | Your real AI provider API Key (OpenAI/Anthropic) | (None) |
 | `AGENTWALL_UPSTREAM_URL` | Upstream routing target | `https://api.openai.com/v1/chat/completions` |
 | `AGENTWALL_DB` | Path to telemetry database | `agentwall_v2.duckdb` |

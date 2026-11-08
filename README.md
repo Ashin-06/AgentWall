@@ -159,7 +159,7 @@ cp .env.example .env  # edit as needed
 ### Start the Server
 
 ```bash
-python -m uvicorn agentwall.main:app --host 0.0.0.0 --port 8000 --ws websockets
+python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8000 --ws websockets
 ```
 
 ### Point Your Agent at AgentWall
@@ -170,7 +170,7 @@ from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="your-key")
 ```
 
-The dashboard is available at `http://localhost:8000`. The password is `AGENTWALL_ADMIN_PASSWORD` from your `.env`, or `admin` if that isn't set. Change it before anyone else can reach the server; `AGENTWALL_ENV=production` refuses to start with a weak one.
+The dashboard is available at `http://localhost:8000`. The password is `AGENTWALL_ADMIN_PASSWORD` from your `.env`; if that's empty, a random one is printed when the server starts. The example `.env` has no keys or secrets in it: set `AGENTWALL_API_KEYS` for your agents, and strong secrets before listening on anything but `127.0.0.1`. `AGENTWALL_ENV=production` refuses to start with weak or example values.
 
 ---
 
