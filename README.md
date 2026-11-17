@@ -85,6 +85,22 @@ These tests use `unittest.mock` to patch ML-layer dependencies, ensuring fast de
 
 ## 🏗️ Architecture
 
+```mermaid
+flowchart TD
+    A["Autonomous Coding Agent (Copilot / Cursor / Aider)"] -->|"base_url = http://localhost:8000/v1"| B["AgentWall Security Proxy"]
+    subgraph B["AgentWall Multi-Layer Inspection Pipeline"]
+        L1["Layer 1: Deterministic Policy Engine (YAML Rules & RBAC)"]
+        L2["Layer 2: Anomaly Scoring (Isolation Forest) & Trust Graph"]
+        L3["Layer 3: Semantic Injection & RAG Poisoning Classifier"]
+        L4["Layer 4: Cross-Session Campaign Correlator"]
+        HT["Active Defense: Honeytoken Exfiltration Trap"]
+        NAE["Natural Attribution Engine (psutil + watchdog)"]
+        L1 --> L2 --> L3 --> L4
+    end
+    B -->|"Permitted Calls"| C["Upstream LLM API (OpenAI / Anthropic / Gemini)"]
+    B -->|"Tamper-Evident Chain"| D["HMAC-SHA256 DuckDB Audit Log & React SOC Dashboard"]
+```
+
 ```
 AI Agent (Copilot / Cursor / Aider)
          │
