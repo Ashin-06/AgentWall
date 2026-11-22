@@ -46,7 +46,19 @@ These results are from **actual FastAPI server calls** using Python's `TestClien
 | False Positive Rate (FPR) | **0%** | 25 benign calls | No legitimate operations were incorrectly blocked |
 | Average Intercept Latency | **~25 ms** | 50 total calls | End-to-end: request in -> policy check -> audit write -> response out |
 
->  **Scope Limitation**: TPR/FPR apply to Layer 1 (deterministic YAML policy rules) only. The ML-based detection layers - Layer 2 anomaly detection (Isolation Forest), Layer 3 semantic injection (LLM classifier), Layer 3 RAG poisoning - are **mocked** in the CI/evals pipeline because they require a live LLM (Ollama/GPT-4) to produce meaningful scores. Full ML-layer evaluation requires a live model deployment.
+>  **Scope Limitation**: TPR/FPR apply to Layer 1 (deterministic YAML policy rules) only. The ML layers are mocked here and in the unit tests. Layer 3 (the LLM injection classifier) is evaluated separately against a real local model on a held-out split of public data; see [docs/EVALUATION.md](docs/EVALUATION.md) and the summary below. Layer 2 (Isolation Forest, RAG detector) has not been evaluated on real data.
+
+### Real-model results - Layer 3 injection classifier (`evals/ml_eval.py`)
+
+Held-out test split of 366 rows (deepset/prompt-injections test, JailbreakBench behaviors, agent tool-call fixtures), block threshold 0.8, laptop RTX 3060 via Ollama:
+
+| Model | Precision | Recall | F1 | Recall on deepset injections | p50 latency |
+|---|---|---|---|---|---|
+| llama3.2:3b | 0.898 | 0.524 | 0.662 | 0.067 | 1.2 s |
+| llama3.1 8B (default) | 0.922 | 0.643 | 0.758 | 0.217 | 3.6 s |
+| heuristic fallback (no model) | 0.812 | 0.070 | 0.129 | 0.033 | < 1 ms |
+
+Most real prompt injections get past the LLM layer. Its recall comes mainly from harmful requests and from tool calls that Layer 1 already blocks.
 
 ---
 
@@ -79,7 +91,7 @@ Automated deterministic tests run on every commit via GitHub Actions.
 | `test_policy_block_malicious_path` |  Pass | Read of `/etc/passwd` is blocked |
 | `test_policy_block_system_command` |  Pass | `rm -rf /` command is blocked |
 
-These tests use `unittest.mock` to patch ML-layer dependencies, ensuring fast deterministic runs in CI.
+These tests use `unittest.mock` to patch ML-layer dependencies, ensuring fast deterministic runs in CI. `tests/test_real_model.py` exercises the real model and is skipped when Ollama is not available.
 
 ---
 
@@ -131,7 +143,7 @@ AI Agent (Copilot / Cursor / Aider)
 | Natural Attribution Engine | `psutil` + `watchdog` |  Implemented; algorithm validated via simulation |
 | Audit Log | DuckDB + HMAC-SHA256 |  Implemented & tested |
 | Anomaly Detection | Isolation Forest (scikit-learn) |  Implemented; requires traffic data to train |
-| Semantic Injection Classifier | LLM via Ollama |  Implemented; requires live Ollama to run |
+| Semantic Injection Classifier | LLM via Ollama |  Implemented; evaluated with a real model in [docs/EVALUATION.md](docs/EVALUATION.md) (low recall on prompt injection) |
 | SOC Dashboard | React + WebSocket |  Built; served from `dashboard/dist/` |
 | Redis Scaling | Optional (`redis-py`) |  Graceful fallback to local memory if absent |
 
@@ -146,7 +158,7 @@ Full STRIDE threat model in [THREAT_MODEL.md](THREAT_MODEL.md).
 | **Not a network firewall** | Agents must explicitly set `base_url`. Agents that hardcode `api.openai.com` will bypass monitoring entirely. |
 | **Proxy-aware bypass** | A sophisticated agent detecting it is being proxied could route directly to the LLM API. Mitigation requires OS-level iptables/eBPF (out of scope). |
 | **Heuristic attribution** | The NAE uses CPU% as a proxy for "recently active" because `psutil` does not provide windowed CPU history without polling. In a high-concurrency environment with many processes, false attribution is possible - handled by the `contested` flag. |
-| **ML layers need a live LLM** | Layers 2-4 produce meaningful output only when a model is running (via Ollama or an API key). In CI, these layers are mocked. |
+| **ML layers need a live LLM** | Layer 3 produces meaningful output only when a model is running; without one it falls back to a heuristic that catches 7% of attacks. With llama3.1 8B it catches 22% of real prompt injections (docs/EVALUATION.md). In CI the ML layers are mocked. |
 | **Attribution not validated on real processes** | The MSA algorithm logic is validated via simulation. Real `psutil` scanning on a live OS with multiple agents has not been formally benchmarked yet. |
 
 ---
@@ -199,6 +211,9 @@ python evals/run_benchmarks.py
 # MSA algorithm logic validation (simulation - does NOT use real psutil)
 python evals/attribution_accuracy.py
 
+# Layer 3 with a real model (needs Ollama; see docs/EVALUATION.md)
+python evals/ml_eval.py --split test --threshold 0.8 --model llama3.2:3b
+
 # Deterministic unit tests (mock ML layers, CI-safe)
 python -m pytest tests/ -v
 
@@ -240,6 +255,7 @@ Fixed rather than suppressed: the session and violation `LIMIT` values are now b
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Full STRIDE threat model, out-of-scope threats |
 | [COMPARISON.md](COMPARISON.md) | Structured comparison vs. LiteLLM, Guardrails-AI, OWASP |
 | [CONFIGURATION.md](CONFIGURATION.md) | Policy YAML syntax, environment variables |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | Real-model evaluation of the Layer 3 classifier: data, method, precision/recall/F1, latency |
 | [ROADMAP.md](ROADMAP.md) | Future work - real-world attribution benchmark, ML eval |
 | [VERIFICATION.md](VERIFICATION.md) | Manual security control verification procedures |
 
