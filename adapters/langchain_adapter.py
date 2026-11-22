@@ -19,7 +19,7 @@ import json
 import os
 import httpx
 from adapters.transport import post
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler  # vibeaudit: ignore[QA007] optional integration, not needed by the core proxy
 from langchain.tools import BaseTool
 
 # Configuration

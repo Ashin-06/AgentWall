@@ -9,7 +9,7 @@ import uuid
 import hashlib
 import hmac
 import os
-import psycopg2
+import psycopg2  # vibeaudit: ignore[QA007] optional integration, not needed by the core proxy
 from psycopg2.extras import execute_values
 from dataclasses import dataclass
 

@@ -135,3 +135,14 @@ jobs:
       run: npm run e2e
     - if: failure()
       run: cat server.log
+
+  vibeaudit:
+    # Pre-deployment security audit; fails the build on any high or critical finding.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: pip install vibeaudit
+    - run: vibeaudit scan . --fail-on high --no-color

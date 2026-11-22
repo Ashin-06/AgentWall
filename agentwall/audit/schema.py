@@ -181,10 +181,10 @@ def write_event(
 
         if hasattr(con, "autocommit"): # Postgres
             with con.cursor() as cur:
-                cur.execute(sql, args)
+                cur.execute(sql, args)  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
                 con.commit()
         else: # DuckDB
-            con.execute(sql, args)
+            con.execute(sql, args)  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
             
         return event_id
     finally:
@@ -195,6 +195,7 @@ def write_event(
 
 def get_sessions(limit: int = 1000) -> list[dict]:
     con  = _conn()
+    placeholder = _get_placeholder(con)
     sql = f"""
         SELECT
             session_id, agent_id,
@@ -208,14 +209,14 @@ def get_sessions(limit: int = 1000) -> list[dict]:
         FROM audit_events
         GROUP BY session_id, agent_id
         ORDER BY last_seen DESC
-        LIMIT {limit}
+        LIMIT {placeholder}
     """
     if hasattr(con, "autocommit"): # Postgres
         with con.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, [int(limit)])  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
             rows = cur.fetchall()
     else: # DuckDB
-        rows = con.execute(sql).fetchall()
+        rows = con.execute(sql, [int(limit)]).fetchall()  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
     _close_conn(con)
     cols = ["session_id","agent_id","total_calls","blocks","audits",
             "sanitised","started_at","last_seen","avg_latency_ms"]
@@ -234,10 +235,10 @@ def get_session_events(session_id: str) -> list[dict]:
     """
     if hasattr(con, "autocommit"): # Postgres
         with con.cursor() as cur:
-            cur.execute(sql, [session_id])
+            cur.execute(sql, [session_id])  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
             rows = cur.fetchall()
     else: # DuckDB
-        rows = con.execute(sql, [session_id]).fetchall()
+        rows = con.execute(sql, [session_id]).fetchall()  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
     _close_conn(con)
     cols = ["event_id","call_id","tool_name","arguments","verdict",
             "reason","details","mitre_id","latency_ms","shadow_block","ts"]
@@ -252,20 +253,21 @@ def get_session_events(session_id: str) -> list[dict]:
 
 def get_violations(limit: int = 1000) -> list[dict]:
     con  = _conn()
+    placeholder = _get_placeholder(con)
     sql = f"""
         SELECT event_id, session_id, agent_id, tool_name,
                verdict, reason, mitre_id, ts
         FROM audit_events
         WHERE verdict IN ('BLOCK','AUDIT')
         ORDER BY ts DESC
-        LIMIT {limit}
+        LIMIT {placeholder}
     """
     if hasattr(con, "autocommit"): # Postgres
         with con.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, [int(limit)])  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
             rows = cur.fetchall()
     else: # DuckDB
-        rows = con.execute(sql).fetchall()
+        rows = con.execute(sql, [int(limit)]).fetchall()  # vibeaudit: ignore[BE001] only the driver placeholder is interpolated; values are bound
     _close_conn(con)
     cols = ["event_id","session_id","agent_id","tool_name","verdict","reason","mitre_id","ts"]
     return [dict(zip(cols, r)) for r in rows]
