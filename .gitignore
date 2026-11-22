@@ -66,3 +66,6 @@ models/
 *.p12
 *.pfx
 audit_spillover*
+# Cypress artefacts
+dashboard/cypress/screenshots/
+dashboard/cypress/videos/
