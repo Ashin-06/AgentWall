@@ -154,7 +154,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
 
 ADMIN_PASSWORD = os.getenv("AGENTWALL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
 if not os.getenv("AGENTWALL_ADMIN_PASSWORD"):
-    print(f"[Security] AGENTWALL_ADMIN_PASSWORD is not set. Dashboard password for this run: {ADMIN_PASSWORD}")
+    # Dev only: production refuses to start without AGENTWALL_ADMIN_PASSWORD (auth.validate_production_config).
+    print(f"[Security] AGENTWALL_ADMIN_PASSWORD is not set. Dashboard password for this run: {ADMIN_PASSWORD}")  # vibeaudit: ignore[SEC010] one-time generated dev password, never a configured secret
 
 
 @app.post("/auth/login")
@@ -178,7 +179,7 @@ async def intercept(request: Request, body: Dict[str, Any], auth=Depends(require
     from pydantic import ValidationError
     try:
         normalised = normalise_raw(body)
-        call = InterceptRequest(**normalised)
+        call = InterceptRequest(**normalised)  # vibeaudit: ignore[BE009] pydantic validation model, nothing is written from it directly
     except (KeyError, TypeError, ValueError, ValidationError):
         raise HTTPException(status_code=422, detail="Invalid tool-call payload")
     # Route through ShadowMode wrapper which handles the evaluation

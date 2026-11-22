@@ -15,7 +15,7 @@ const VERDICT_COLORS = {
   AUDIT:  "#f59e0b",
   PERMIT: "#10b981",
   ALLOW:  "#10b981",
-  PASS:   "#10b981",
+  PASS:   "#10b981", // vibeaudit: ignore[SEC011] verdict colour, not a password
 };
 
 const s = {

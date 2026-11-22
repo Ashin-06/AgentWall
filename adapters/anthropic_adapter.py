@@ -6,7 +6,7 @@ import uuid
 import os
 import httpx
 from adapters.transport import post
-import anthropic
+import anthropic  # vibeaudit: ignore[QA007] optional integration, not needed by the core proxy
 
 # Configuration
 AGENTWALL = os.getenv("AGENTWALL_URL", "http://localhost:8000")

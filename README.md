@@ -209,6 +209,28 @@ cd dashboard && npm run build && npm run e2e
 
 ---
 
+## Pre-deployment check (vibeaudit)
+
+CI runs [vibeaudit](https://pypi.org/project/vibeaudit/) on every push and pull request and fails on any high or critical finding:
+
+```bash
+pip install vibeaudit
+vibeaudit scan . --fail-on high
+```
+
+Findings that were reviewed and are not defects are suppressed inline with `vibeaudit: ignore[RULE]` and a reason:
+
+| Rule | Where | Why it is not a defect |
+|---|---|---|
+| BE001 | `agentwall/audit/schema.py` | Only the driver placeholder (`?` or `%s`) is spliced into the SQL; every value, including `LIMIT`, is a bound parameter. |
+| BE009 | `agentwall/main.py` intercept route | `InterceptRequest` is a pydantic validation model; nothing is written from it directly. |
+| SEC011 | `agentwall/active_defense/honeytoken.py` | Decoy credentials are the honeytoken feature. |
+| SEC011 | `dashboard/src/components/AttackGraph.jsx` | `PASS` is a verdict colour. |
+| SEC010 | `agentwall/main.py` | Prints a one-time generated dashboard password only when none is configured; production mode refuses to start without one. |
+| QA007 | `adapters/`, `agentwall/audit/postgres_queue.py` | Optional integrations (Anthropic, LangChain, PostgreSQL), not needed by the core proxy. |
+
+Fixed rather than suppressed: the session and violation `LIMIT` values are now bound parameters, vite moved to 6.4 (8 advisories against 5.4), and an unused `agentwall/layer1/rbac.py` with hard-coded bindings was removed.
+
 ##  Documentation
 
 | Document | Contents |

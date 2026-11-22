@@ -14,7 +14,7 @@ class HoneyTokenDefense:
         self.active_tokens = {
             "AWS_ACCESS_KEY_ID": "AKIA_HONEY_TOKEN_DECOY_7EXAMPLE",
             "STRIPE_SECRET": "sk_honey_decoy_MHoneyTokenDecoyExampleKey001",
-            "INTERNAL_DB_PASSWORD": "P@ssw0rd_Decoy_DB_2026!"
+            "INTERNAL_DB_PASSWORD": "P@ssw0rd_Decoy_DB_2026!"  # vibeaudit: ignore[SEC011] honeytoken decoy by design, not a real credential
         }
         
     def check_exfiltration(self, call: dict) -> dict:
