@@ -29,7 +29,8 @@ COPY config/    ./config/
 COPY --from=dashboard /dashboard/dist/ ./dashboard/dist/
 # COPY evals/     ./evals/ # Placeholder for future benchmark suite
 
-RUN mkdir -p /data/models /data/db
+# Owned by the uid the Kubernetes Deployment runs as, so a fresh volume mounted at /data is writable.
+RUN mkdir -p /data/models /data/db && chown -R 10001:10001 /data
 
 ENV AGENTWALL_DB=/data/db/agentwall.duckdb
 ENV AGENTWALL_MODEL_DIR=/data/models
