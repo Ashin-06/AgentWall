@@ -1,0 +1,82 @@
+# One replica: the audit log is a single-writer DuckDB file and session state is in-process.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentwall
+  labels:
+    app.kubernetes.io/name: agentwall
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agentwall
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentwall
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: agentwall
+          image: agentwall
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: AGENTWALL_ENV
+              value: production
+            - name: AGENTWALL_DB
+              value: /data/agentwall.duckdb
+            - name: AGENTWALL_MODEL_DIR
+              value: /data/models
+            - name: AGENTWALL_SPILLOVER_LOG
+              value: /data/audit_spillover.log
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          # Required keys: AGENTWALL_ADMIN_PASSWORD, AGENTWALL_JWT_SECRET, AGENTWALL_HMAC_KEY,
+          # AGENTWALL_API_KEYS. See deploy/k8s/README.md.
+          envFrom:
+            - secretRef:
+                name: agentwall-secrets
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: agentwall-data
+        - name: tmp
+          emptyDir: {}
