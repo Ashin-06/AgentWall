@@ -1,5 +1,5 @@
 """
-Natural Attribution Engine (NAE) — System Watcher
+Natural Attribution Engine (NAE) - System Watcher
 ===================================================
 Implements the Multi-Signal Attribution (MSA) Algorithm described in ATTRIBUTION.md.
 
@@ -7,10 +7,10 @@ This module monitors the host filesystem for modifications and attributes each e
 to the most likely active AI agent process using weighted signal scoring.
 
 Attribution signals (in descending priority):
-  1. Open File Handle  (weight=1.0)  — strongest: OS-verified file descriptor
-  2. CPU Activity      (weight=0.6)  — agent actively computing within window W
-  3. Process Name      (weight=0.3)  — known agent signature match
-  4. Parent Process    (weight=0.4)  — extension host parent chain
+  1. Open File Handle  (weight=1.0)  - strongest: OS-verified file descriptor
+  2. CPU Activity      (weight=0.6)  - agent actively computing within window W
+  3. Process Name      (weight=0.3)  - known agent signature match
+  4. Parent Process    (weight=0.4)  - extension host parent chain
 
 Conflict Resolution:
   - If multiple agents tie in score, the most recently active process wins.
@@ -26,7 +26,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-# ── Known Agent Signatures ─────────────────────────────────────────────────────
+# -- Known Agent Signatures -----------------------------------------------------
 
 KNOWN_AGENTS = {
     "code.exe":   "VS_Code_Copilot",
@@ -59,10 +59,10 @@ SIGNAL_WEIGHTS = {
     "name_match":       0.3,
     "parent_match":     0.4,
 }
-MAX_SCORE = sum(SIGNAL_WEIGHTS.values())  # 2.3 — normalization constant
+MAX_SCORE = sum(SIGNAL_WEIGHTS.values())  # 2.3 - normalization constant
 
 
-# ── MSA Implementation ─────────────────────────────────────────────────────────
+# -- MSA Implementation ---------------------------------------------------------
 
 def _get_process_snapshot() -> list[dict]:
     """Capture current process table for attribution scoring."""
@@ -105,7 +105,7 @@ def _score_process(proc: dict, event_path: str, event_ts: float) -> float:
     """
     score = 0.0
 
-    # Signal 1: Open file handle (strongest — OS-verified)
+    # Signal 1: Open file handle (strongest - OS-verified)
     if event_path in proc["open_files"]:
         score += SIGNAL_WEIGHTS["open_file_handle"]
 
@@ -133,13 +133,13 @@ def _score_process(proc: dict, event_path: str, event_ts: float) -> float:
 
 def attribute_event(event_path: str, event_ts: float) -> dict:
     """
-    Main attribution function — implements all three phases of the MSA algorithm.
+    Main attribution function - implements all three phases of the MSA algorithm.
 
     Returns:
         dict: {
-            "agent_id": str,         — attributed agent label
-            "confidence": float,     — normalized [0, 1]
-            "contested": bool,       — True when multiple agents tie
+            "agent_id": str,         - attributed agent label
+            "confidence": float,     - normalized [0, 1]
+            "contested": bool,       - True when multiple agents tie
             "pid": int | None
         }
     """
@@ -167,7 +167,7 @@ def attribute_event(event_path: str, event_ts: float) -> dict:
         scores[pid] = _score_process(proc, event_path, event_ts)
         labels[pid] = label
 
-    # Phase 3 — Conflict Resolution
+    # Phase 3 - Conflict Resolution
     max_score = max(scores.values())
     top_pids  = [pid for pid, s in scores.items() if s == max_score]
     contested = len(top_pids) > 1
@@ -198,7 +198,7 @@ def get_likely_agent() -> str:
     return result["agent_id"]
 
 
-# ── Watchdog Integration ───────────────────────────────────────────────────────
+# -- Watchdog Integration -------------------------------------------------------
 
 class SystemAuditHandler(FileSystemEventHandler):
     """
@@ -213,7 +213,7 @@ class SystemAuditHandler(FileSystemEventHandler):
 
     def __init__(self, loop):
         self.loop = loop
-        self._last_trigger = {}  # Debounce map: path → last_ts
+        self._last_trigger = {}  # Debounce map: path -> last_ts
 
     def on_modified(self, event):
         if event.is_directory:

@@ -34,7 +34,8 @@ _COMBINING  = re.compile(r'[\u0300-\u036f]')
 # RTL/LTR override characters
 _BIDI       = re.compile(r'[\u202a-\u202e\u2066-\u2069]')
 # Markdown emphasis stripped
-_MARKDOWN   = re.compile(r'[*_`~|]{1,3}(.*?)[*_`~|]{1,3}')
+# Only paired emphasis markers; single '_' and '|' are meaningful in paths and shell commands.
+_MARKDOWN   = re.compile(r'(\*{1,3}|`+|~~)(.+?)\1')
 # Excessive whitespace (including unicode spaces)
 _SPACES     = re.compile(r'[\s\u00a0\u2000-\u200a\u3000]+')
 
@@ -90,7 +91,7 @@ def normalise_text(text: str) -> str:
             pass
 
     # 8. Strip markdown emphasis
-    text = _MARKDOWN.sub(r'\1', text)
+    text = _MARKDOWN.sub(r'\2', text)
 
     # 9. Visual Canonicalization (map lookalikes)
     text = text.translate(VISUAL_MAP)
@@ -115,6 +116,10 @@ class TextNormaliser:
         """Return a copy of call with all text fields normalised."""
         import copy
         c = copy.deepcopy(call)
+        # Policy rules match tool and agent names exactly, so "Bash " must not slip past a "bash" rule.
+        for key in ("tool_name", "agent_id"):
+            if isinstance(c.get(key), str):
+                c[key] = normalise_text(c[key]).lower()
         c["arguments"] = self._normalise_obj(c.get("arguments", {}))
         if c.get("context"):
             c["context"] = normalise_text(c["context"])

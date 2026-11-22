@@ -13,7 +13,7 @@ export default function PolicyViolations({ violations }) {
         <span style={s.count}>{violations_safe.length}</span>
       </h3>
       <div style={s.scroll}>
-        {recent.length === 0 && <p style={s.empty}>No violations. 🎉</p>}
+        {recent.length === 0 && <p style={s.empty}>No violations. </p>}
         {recent.map(v => (
           <div key={v.event_id} style={{...s.row, background: expanded === v.event_id ? "#1a1d27" : "transparent"}} 
                onClick={() => setExpanded(expanded === v.event_id ? null : v.event_id)}>

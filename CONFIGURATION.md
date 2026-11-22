@@ -1,4 +1,4 @@
-# ⚙️ Configuration Guide
+#  Configuration Guide
 
 > [!CAUTION]
 > **CRITICAL SECURITY WARNING**: The default administrator password is `admin`. This MUST be changed in your `.env` file before any live deployment.

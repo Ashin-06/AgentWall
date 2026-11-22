@@ -156,7 +156,7 @@
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 19 },
       "id": 22,
-      "title": "Anomaly Score (p95) — Behavioural Drift",
+      "title": "Anomaly Score (p95) - Behavioural Drift",
       "type": "timeseries",
       "targets": [
         { "expr": "agentwall_anomaly_score{quantile=\"0.95\"}", "legendFormat": "p95 anomaly" },

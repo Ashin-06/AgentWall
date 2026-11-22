@@ -1,4 +1,4 @@
-# Audit and maintenance update — 2026-10-09
+# Audit and maintenance update - 2026-10-09
 
 This pass preserves the existing README, product copy, branding, six dashboard tabs, and forensic export. It focuses on dashboard reliability, database recovery, and regression coverage. It is not a complete security certification.
 
@@ -12,7 +12,7 @@ This pass preserves the existing README, product copy, branding, six dashboard t
 - Removed database-lock recovery that terminated other Python processes. Exhausted retries now report the lock failure.
 - Audit chain state advances only after a successful insert, preserving the previous hash on failed writes.
 - Explicit environment variables take precedence over `.env` values.
-- Sessions and violations reject limits outside 1–1000.
+- Sessions and violations reject limits outside 1-1000.
 
 ## Added
 

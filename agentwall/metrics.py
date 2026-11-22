@@ -38,7 +38,7 @@ class MetricsRegistry:
         self._gauges:     Dict[str, float]   = {}
         self._start_time = time.time()
 
-    # ── Record methods ────────────────────────────────────────────────────────
+    # -- Record methods --------------------------------------------------------
 
     def inc(self, name: str, labels: dict = None, value: float = 1):
         key = self._label_key(labels)
@@ -57,7 +57,7 @@ class MetricsRegistry:
         key = self._label_key(labels)
         self._gauges[f"{name}#{key}"] = value
 
-    # ── Convenience recorders ─────────────────────────────────────────────────
+    # -- Convenience recorders -------------------------------------------------
 
     def record_call(self, verdict: str, tool_name: str,
                     agent_id: str, latency_ms: float,
@@ -92,7 +92,7 @@ class MetricsRegistry:
         self.set_gauge("agentwall_queue_size", queue_size)
         self.set_gauge("agentwall_active_campaigns", active_campaigns)
 
-    # ── Prometheus text format renderer ──────────────────────────────────────
+    # -- Prometheus text format renderer --------------------------------------
 
     def uptime(self) -> float:
         """Returns seconds since registry initialization."""

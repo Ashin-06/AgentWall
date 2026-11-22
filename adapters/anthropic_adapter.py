@@ -26,12 +26,12 @@ class GuardedClient:
                 verdict = self._intercept_call(block, kwargs.get("system",""))
                 if verdict["verdict"] == "BLOCK":
                     raise PermissionError(
-                        f"🛡️ AgentWall BLOCKED: {verdict['reason']} "
+                        f" AgentWall BLOCKED: {verdict['reason']} "
                         f"[{verdict.get('mitre_id','')}] "
                         f"(event={verdict['event_id']})"
                     )
                 if verdict["verdict"] == "AUDIT":
-                    print(f"[AgentWall ⚠️  AUDIT] {block.name}: {verdict['reason']}")
+                    print(f"[AgentWall   AUDIT] {block.name}: {verdict['reason']}")
         return response
 
     def sanitise_tool_output(self, tool_name: str, output: str) -> str:
@@ -44,7 +44,7 @@ class GuardedClient:
         }, timeout=5.0)
         data = r.json()
         if data.get("sanitised"):
-            print(f"[AgentWall 🧹 SANITISED] Removed {len(data['removals'])} patterns "
+            print(f"[AgentWall  SANITISED] Removed {len(data['removals'])} patterns "
                   f"from {tool_name} output")
         return data["output"]
 

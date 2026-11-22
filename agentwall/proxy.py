@@ -47,6 +47,7 @@ class AgentWallProxy:
         self._audit_logger = audit_logger
         
         self._injection_failure_rate = 0.0  # Distributed failure tracker (Circuit Breaker)
+        self._injection_failed_at = 0.0
         self._start_time = time.time()      # Tracking warm-up window (Issue 2)
         self._shadow_mode_active = os.getenv("AGENTWALL_SHADOW_MODE", "0") == "1"
         self._system_lockdown_active = False
@@ -190,7 +191,7 @@ class AgentWallProxy:
         t_start = time.perf_counter()
         t_eval  = {}
         
-        # ── Pre-processing ──────────────────────────────────────────────────
+        # -- Pre-processing --------------------------------------------------
         call = {
             "session_id": raw_payload.get("session_id", "default"),
             "agent_id":   raw_payload.get("agent_id", "default"),
@@ -201,7 +202,7 @@ class AgentWallProxy:
             "timestamp":  raw_payload.get("timestamp", time.time()),
         }
 
-        # ── Text normalisation (adversarial hardening) ─────────────────────
+        # -- Text normalisation (adversarial hardening) ---------------------
         call = self.normaliser.normalise_call(call)
         
         # 95% Readiness: Global System Lockdown Check
@@ -214,10 +215,10 @@ class AgentWallProxy:
                     {"global_lockdown": True}, "T1566", t_start
                 )
 
-        # ── Intent alignment (always runs — cheap) ─────────────────────────
+        # -- Intent alignment (always runs - cheap) -------------------------
         alignment = self.alignment.score(call)
 
-        # ── Active Defense: Honey-Token & Lockdown Check ───────────────────
+        # -- Active Defense: Honey-Token & Lockdown Check -------------------
         is_locked = False
         if self.redis:
             is_locked = bool(self.redis.sismember("locked_sessions", call.get("session_id")))
@@ -243,12 +244,12 @@ class AgentWallProxy:
                 {"honeytoken": honey_result, "lockdown": True}, "T1552.001", t_start
             )
 
-        # ── Layer 1: Fast path (SHORT-CIRCUIT) ───────────────────────────────
+        # -- Layer 1: Fast path (SHORT-CIRCUIT) -------------------------------
         rate_result   = self.rate.check(call)
         if rate_result["blocked"]:
             return await self._finalise(call, BLOCK, rate_result["reason"], {"rate": rate_result}, "T1498", t_start)
 
-        # ── Layer 1: Policy Engine ──────────────────────────────────────────
+        # -- Layer 1: Policy Engine ------------------------------------------
         t1_start = time.perf_counter()
         l1_res = self.policy.check(call)
         t_eval["layer1"] = (time.perf_counter() - t1_start) * 1000
@@ -265,14 +266,14 @@ class AgentWallProxy:
             await causal_task_early
             return await self._finalise(call, BLOCK, rbac_result["reason"], {"rbac": rbac_result}, "T1078", t_start)
 
-        # ── Apply PII Masking ────────────────────────────────────────────────
+        # -- Apply PII Masking ------------------------------------------------
         call, pii_matches = mask_call_arguments(call)
 
         # Record delegation (Issue 2)
         caller_id = call.get("caller_agent_id", call["agent_id"])
         self.trust_graph.record_delegation(call["session_id"], caller_id, call["agent_id"])
 
-        # ── Layer 2: Parallel Behavioral checks (Optimised) ──────────────────
+        # -- Layer 2: Parallel Behavioral checks (Optimised) ------------------
         # Runs independent L2 detectors concurrently
         anomaly_task = asyncio.to_thread(self.anomaly.score, call)
         rag_task     = asyncio.to_thread(self.rag.check, call)
@@ -303,13 +304,13 @@ class AgentWallProxy:
                 {"rag": rag_res}, "T1565.001", t_start
             )
 
-        # ── Layer 2: Behavioral Parallel Scan ────────────────────────────────
+        # -- Layer 2: Behavioral Parallel Scan --------------------------------
         t_l2_start = time.perf_counter()
         # [WARM-UP POLICY] (Issue 2)
         # If baseline not converged, force synchronous L3 for high-priv tools
         is_warming = time.time() - self._start_time < 14400 # 4 hour window
         
-        # ── Layer 3: Semantic Guard (Circuit Breaker + Shadow Mode) ──────────
+        # -- Layer 3: Semantic Guard (Circuit Breaker + Shadow Mode) ----------
         t3_start = time.perf_counter()
         # [CRITICAL SECURITY GATE] High-privilege tools NEVER use shadow mode
         # Expanding to include communication, sensitive data, and system discovery (Audit v3 Fix)
@@ -338,14 +339,14 @@ class AgentWallProxy:
 
         t_eval["layer3"] = (time.perf_counter() - t3_start) * 1000
 
-        # ── Layer 4: Dynamic Defensive Response (HITL + Sandbox) ─────────────
+        # -- Layer 4: Dynamic Defensive Response (HITL + Sandbox) -------------
         # If score is moderately suspicious, suggest Sandbox
         anomaly_score = anomaly_res.get("anomaly_score", 0)
         injection_score = injection_res.get("score", 0)
         
         use_sandbox = self.sandbox.route(anomaly_score, injection_score)
         
-        # ── Verdict Formulation ──────────────────────────────────────────────
+        # -- Verdict Formulation ----------------------------------------------
         verdict = PERMIT
         reason  = "Permitted by all layers."
         if l1_res["action"] == AUDIT or anomaly_score > 0.25 or injection_score > 0.25:
@@ -377,14 +378,16 @@ class AgentWallProxy:
 
     async def _run_semantic_guard(self, call: dict) -> dict:
         """Core semantic evaluation with circuit breaker protection."""
-        if self._injection_failure_rate > 0.15:
+        # Half-open after 30 s, otherwise one failure would disable this layer for good.
+        if self._injection_failure_rate > 0.15 and time.time() - self._injection_failed_at < 30:
             return {"score": 0.5, "reasoning": "Fallback: Circuit breaker open"}
         try:
             res = await self.injection.analyse(call)
-            self._injection_failure_rate *= 0.85
+            self._injection_failure_rate = 0.0 if self._injection_failure_rate > 0.15 else self._injection_failure_rate * 0.85
             return {**res, "reasoning": res.get("reasoning") or ", ".join(res.get("matches", [])) or "Semantic analysis"}
         except Exception as e:
             self._injection_failure_rate = min(1.0, self._injection_failure_rate + 0.2)
+            self._injection_failed_at = time.time()
             return {"score": 0.6, "reasoning": f"Fallback: Semantic engine failure ({e})"}
 
     async def _run_semantic_guard_shadow(self, call: dict):
@@ -393,7 +396,11 @@ class AgentWallProxy:
             res = await self._run_semantic_guard(call)
             if res["score"] > 0.8:
                 # Generate late AUDIT alert for forensics
-                await self.audit.log(call, verdict="AUDIT", reason=f"Shadow Detection: {res['reasoning']}")
+                await self.audit.log({
+                    **call, "event_id": str(uuid.uuid4()), "verdict": "AUDIT",
+                    "reason": f"Shadow Detection: {res['reasoning']}", "details": {"injection": res},
+                    "mitre_id": "T1566",
+                })
         except Exception as e:
             print(f"[Proxy] [ERROR] Shadow evaluation failed: {e}")
 

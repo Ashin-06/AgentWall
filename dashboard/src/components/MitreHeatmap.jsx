@@ -23,7 +23,7 @@ export default function MitreHeatmap({ data }) {
   if (!data || data.length === 0) {
     return (
       <div style={s.empty}>
-        <div style={{ fontSize: 32 }}>🟣</div>
+        <div style={{ fontSize: 32 }}></div>
         <p style={{ color: "#4b5563", marginTop: 10 }}>No MITRE techniques detected in recent activity.</p>
       </div>
     );

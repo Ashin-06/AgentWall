@@ -2,8 +2,8 @@
 LangChain v2 callback + tool wrapper.
 
 Two integration modes:
-  1. Callback (AgentWallCallback) — attach to any LangChain agent
-  2. Wrapped tool (guarded_tool) — wrap individual tools
+  1. Callback (AgentWallCallback) - attach to any LangChain agent
+  2. Wrapped tool (guarded_tool) - wrap individual tools
 
 Usage:
   from adapters.langchain_adapter import AgentWallCallback, guarded_tool
@@ -49,13 +49,13 @@ class AgentWallCallback(BaseCallbackHandler):
             result = r.json()
             if result["verdict"] == "BLOCK":
                 raise PermissionError(
-                    f"🛡️ AgentWall BLOCKED: {result['reason']} "
+                    f" AgentWall BLOCKED: {result['reason']} "
                     f"[{result.get('mitre_id','')}]"
                 )
             if result["verdict"] == "AUDIT":
-                print(f"[AgentWall ⚠️] {serialized.get('name')}: {result['reason']}")
+                print(f"[AgentWall ] {serialized.get('name')}: {result['reason']}")
         except httpx.RequestError as e:
-            print(f"[AgentWall] Firewall unreachable ({e}) — continuing in degraded mode")
+            print(f"[AgentWall] Firewall unreachable ({e}) - continuing in degraded mode")
 
     def on_tool_end(self, output: str, **kwargs):
         """Sanitise tool output before it goes back to the agent."""
@@ -65,7 +65,7 @@ class AgentWallCallback(BaseCallbackHandler):
             }, timeout=5.0)
             data = r.json()
             if data.get("sanitised"):
-                print(f"[AgentWall 🧹] Sanitised {len(data['removals'])} patterns from tool output")
+                print(f"[AgentWall ] Sanitised {len(data['removals'])} patterns from tool output")
             return data["output"]
         except:
             return output

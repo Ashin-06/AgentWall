@@ -1,5 +1,5 @@
 """
-Intent-Tool Alignment Scorer — the most forward-looking component.
+Intent-Tool Alignment Scorer - the most forward-looking component.
 
 Hypothesis: When an AI agent is hijacked (by prompt injection, memory
 poisoning, or a compromised sub-agent), its TOOL CALLS diverge from
@@ -14,12 +14,12 @@ We score alignment between:
   1. The original user task (embedded at session start)
   2. Each subsequent tool call (tool name + arguments)
 
-Alignment score ≈ cosine similarity in a simple TF-IDF embedding space.
+Alignment score ~ cosine similarity in a simple TF-IDF embedding space.
 Below 0.3 = severe drift = possible hijack.
 
 Note: We use TF-IDF (no external model needed) for latency and portability.
 If you have sentence-transformers available, swap in that encoder for
-much better semantic alignment — the interface is the same.
+much better semantic alignment - the interface is the same.
 """
 import math
 import re
@@ -32,13 +32,13 @@ def tokenise(text: str) -> list[str]:
     if not isinstance(text, str):
         text = str(text)
     text = text.lower()
-    # Split on underscores too so read_file → [read, file]
+    # Split on underscores too so read_file -> [read, file]
     text = re.sub(r'[_\-/\\]', ' ', text)
     return re.findall(r'[a-z]{2,}', text)
 
 
 class TFIDF:
-    """Minimal TF-IDF implementation — no dependencies."""
+    """Minimal TF-IDF implementation - no dependencies."""
     def __init__(self):
         self._df: Counter = Counter()  # document frequency
         self._n: int = 0
@@ -68,7 +68,7 @@ class TFIDF:
 class IntentAlignmentScorer:
     def __init__(self):
         self._tfidf = TFIDF()
-        self._session_goals: dict[str, dict] = {}  # session_id → TF-IDF vector
+        self._session_goals: dict[str, dict] = {}  # session_id -> TF-IDF vector
 
     def score(self, call: dict) -> dict:
         session_id = call["session_id"]

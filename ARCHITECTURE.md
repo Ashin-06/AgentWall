@@ -6,15 +6,15 @@ AgentWall provides process attribution and traffic monitoring for AI agents. It 
 
 ## 1. Natural Attribution Engine (NAE)
 
-The core technical contribution of AgentWall. The NAE solves the attribution problem — *given a file-system modification at time T, which of N active AI agent processes caused it?* — without requiring TLS interception, which would break most IDE integrations.
+The core technical contribution of AgentWall. The NAE solves the attribution problem - *given a file-system modification at time T, which of N active AI agent processes caused it?* - without requiring TLS interception, which would break most IDE integrations.
 
 ### Multi-Signal Attribution (MSA) Algorithm
 
 The NAE uses a three-phase weighted voting approach formalized as the **MSA Algorithm** (see [ATTRIBUTION.md](ATTRIBUTION.md) for full pseudocode and conflict resolution policy):
 
-**Phase 1 — Candidate Filtering**: Scan the OS process table via `psutil` and retain only processes matching known AI agent signatures (VS Code, Cursor, Aider, etc.).
+**Phase 1 - Candidate Filtering**: Scan the OS process table via `psutil` and retain only processes matching known AI agent signatures (VS Code, Cursor, Aider, etc.).
 
-**Phase 2 — Signal Scoring**: For each candidate process, compute a weighted score using 4 signals:
+**Phase 2 - Signal Scoring**: For each candidate process, compute a weighted score using 4 signals:
 
 | Signal | Weight | Rationale |
 |---|---|---|
@@ -23,7 +23,7 @@ The NAE uses a three-phase weighted voting approach formalized as the **MSA Algo
 | Process Name Signature Match | 0.3 | Heuristic prior |
 | Child of Known Launcher | 0.4 | Extension hosts inherit parent identity |
 
-**Phase 3 — Conflict Resolution**: If scores are tied (multiple agents active simultaneously), the most recently active process wins. A `contested` flag is raised if ambiguity remains.
+**Phase 3 - Conflict Resolution**: If scores are tied (multiple agents active simultaneously), the most recently active process wins. A `contested` flag is raised if ambiguity remains.
 
 ### Attribution Accuracy (Experimental Results)
 
@@ -31,8 +31,8 @@ The NAE uses a three-phase weighted voting approach formalized as the **MSA Algo
 |---|---|---|
 | Single agent, distinct file | 100% | 0% |
 | Dual agent, distinct files | 100% | 0% |
-| Dual agent, same file (worst case) | Best-effort | 100% ✅ |
-| P99 attribution latency | — | 0.01 ms |
+| Dual agent, same file (worst case) | Best-effort | 100%  |
+| P99 attribution latency | - | 0.01 ms |
 
 Source: `evals/attribution_accuracy.py`
 
@@ -57,26 +57,26 @@ To monitor LLM "Thoughts" (API requests), AgentWall provides a protocol-agnostic
 
 ```
 Inbound Call
-     │
-     ▼
-[Layer 1: PolicyEngine]   ← YAML rules, glob/regex matching, per-agent RBAC
-     │ BLOCK / continue
-     ▼
-[Layer 2: Anomaly + Trust]  ← Isolation Forest, Trust Graph, RAG Poison, Causal Graph
-     │ flag / continue
-     ▼
-[Layer 3: Semantic Engine]  ← LLM-assisted injection classification
-     │ score / continue
-     ▼
-[Layer 4: Campaign Detect] ← SimHash clustering of attack patterns across sessions
-     │
-     ▼
-[Active Defense]           ← Honeytoken check (100% confidence, 0% FPR)
-     │
-     ▼
-[Audit Log]                ← HMAC-chained DuckDB write (non-blocking async queue)
-     │
-     ▼
+     |
+     v
+[Layer 1: PolicyEngine]   <- YAML rules, glob/regex matching, per-agent RBAC
+     | BLOCK / continue
+     v
+[Layer 2: Anomaly + Trust]  <- Isolation Forest, Trust Graph, RAG Poison, Causal Graph
+     | flag / continue
+     v
+[Layer 3: Semantic Engine]  <- LLM-assisted injection classification
+     | score / continue
+     v
+[Layer 4: Campaign Detect] <- SimHash clustering of attack patterns across sessions
+     |
+     v
+[Active Defense]           <- Honeytoken check (100% confidence, 0% FPR)
+     |
+     v
+[Audit Log]                <- HMAC-chained DuckDB write (non-blocking async queue)
+     |
+     v
 [Forward to LLM API]
 ```
 
@@ -113,6 +113,6 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for the full STRIDE analysis.
 - Anomalous agent behavior drift (Isolation Forest)
 
 **Explicitly Out of Scope:**
-- Proxy-aware bypass (agent detects proxy and routes directly) — requires OS-level iptables/eBPF
+- Proxy-aware bypass (agent detects proxy and routes directly) - requires OS-level iptables/eBPF
 - Physical host compromise
 - Model-level poisoning

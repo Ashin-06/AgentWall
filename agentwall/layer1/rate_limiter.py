@@ -2,10 +2,10 @@
 Per-agent rate limiter with circuit breaker and Token Bucket algorithm.
 
 If an agent makes > N tool calls in T seconds, it's likely either:
-  - A runaway agent (bug) → circuit break
-  - An attack generating high call volume → block + alert
+  - A runaway agent (bug) -> circuit break
+  - An attack generating high call volume -> block + alert
 
-Circuit breaker states: CLOSED (normal) → OPEN (blocking) → HALF_OPEN (testing)
+Circuit breaker states: CLOSED (normal) -> OPEN (blocking) -> HALF_OPEN (testing)
 Uses a Token Bucket algorithm for precise traffic shaping.
 """
 import time
@@ -20,7 +20,7 @@ class CBState(Enum):
     HALF_OPEN = "half_open"
 
 
-# Default limits — override per-agent in policy.yaml
+# Default limits - override per-agent in policy.yaml
 DEFAULT_LIMITS = {
     "calls_per_minute":  500,
     "calls_per_second":  50,
@@ -85,7 +85,7 @@ class RateLimiter:
             if now - state.cb_opened_at > self.limits["cb_recovery_secs"]:
                 state.cb_state = CBState.HALF_OPEN
             else:
-                return {"blocked": True, "reason": "Circuit breaker OPEN — agent rate limit exceeded"}
+                return {"blocked": True, "reason": "Circuit breaker OPEN - agent rate limit exceeded"}
 
         # Check per-second bucket
         if not state.sec_bucket.consume():

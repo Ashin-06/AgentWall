@@ -35,7 +35,7 @@ class FailsafeProxy:
             )
         except asyncio.TimeoutError:
             verdict = "PERMIT" if self.fail_mode == "open" else "BLOCK"
-            reason  = f"AgentWall pipeline timeout ({self.timeout}s) — failing {self.fail_mode}"
+            reason  = f"AgentWall pipeline timeout ({self.timeout}s) - failing {self.fail_mode}"
             print(f"[Failsafe] WARNING: {reason}")
             return {
                 "verdict":  verdict,
@@ -46,7 +46,7 @@ class FailsafeProxy:
             }
         except Exception as e:
             verdict = "PERMIT" if self.fail_mode == "open" else "BLOCK"
-            reason  = f"AgentWall internal error — failing {self.fail_mode}"
+            reason  = f"AgentWall internal error - failing {self.fail_mode}"
             print(f"[Failsafe] ERROR: Internal error: {e}")
             traceback.print_exc()
             return {

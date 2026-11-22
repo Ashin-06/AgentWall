@@ -66,14 +66,14 @@ export default function SessionReplay({ events, sessionId }) {
 
   if (!sessionId) return (
     <div style={s.empty}>
-      <div style={{ fontSize: 32 }}>📁</div>
+      <div style={{ fontSize: 32 }}></div>
       <p style={{ color: "#4b5563", marginTop: 10 }}>Select a session from the list to begin forensic playback.</p>
     </div>
   );
 
   if (events_safe.length === 0) return (
     <div style={s.empty}>
-      <div style={{ fontSize: 32 }}>⏳</div>
+      <div style={{ fontSize: 32 }}>...</div>
       <p style={{ color: "#4b5563", marginTop: 10 }}>No events recorded for this session yet.</p>
     </div>
   );
@@ -97,7 +97,7 @@ export default function SessionReplay({ events, sessionId }) {
             <span style={{ ...s.pill, color: "#c084fc" }}>Risk {riskScore}%</span>
           </div>
           <button style={s.exportBtn} onClick={() => exportForensicJSON(sessionId, events_safe)} title="Download raw session data with HMAC chains">
-            ⬇ Export Forensics
+            v Export Forensics
           </button>
         </div>
       </header>
@@ -107,7 +107,7 @@ export default function SessionReplay({ events, sessionId }) {
         {events_safe.map((ev, i) => (
           <div
             key={i}
-            title={`${ev.tool_name} → ${ev.verdict}`}
+            title={`${ev.tool_name} -> ${ev.verdict}`}
             onClick={() => setSelectedIdx(i)}
             style={{
               ...s.minimapBar,
@@ -120,7 +120,7 @@ export default function SessionReplay({ events, sessionId }) {
         ))}
       </div>
 
-      <div style={s.hint}>↑ ↓ arrow keys to step · Click minimap to jump</div>
+      <div style={s.hint}>^ v arrow keys to step - Click minimap to jump</div>
 
       <div className="replay-main" style={s.main}>
         {/* Timeline list */}

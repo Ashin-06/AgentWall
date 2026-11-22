@@ -1,14 +1,14 @@
 """
-Semantic Policy Compiler — write rules in plain English, get YAML back.
+Semantic Policy Compiler - write rules in plain English, get YAML back.
 
 Examples:
   "this agent may not write files outside /workspace"
-  →  tool: write_file, match: {path: {regex: "^(?!/workspace)"}}, action: BLOCK
+  ->  tool: write_file, match: {path: {regex: "^(?!/workspace)"}}, action: BLOCK
 
   "block any shell command that downloads and executes code"
-  →  tool: bash, match: {command: {regex: "(curl|wget).*(|bash|sh)"}}, action: BLOCK
+  ->  tool: bash, match: {command: {regex: "(curl|wget).*(|bash|sh)"}}, action: BLOCK
 
-Uses Claude to do the NL → structured rule translation.
+Uses Claude to do the NL -> structured rule translation.
 The compiled output is validated before use.
 """
 import json
@@ -56,7 +56,7 @@ class SemanticPolicyCompiler:
 
     async def _compile_one(self, rule_text: str) -> dict | None:
         if not self.api_key and not self.ollama_model:
-            return {"error": "No API key or Ollama model — cannot compile NL policy", "input": rule_text}
+            return {"error": "No API key or Ollama model - cannot compile NL policy", "input": rule_text}
             
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:

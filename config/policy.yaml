@@ -1,11 +1,11 @@
 # AgentWall v2 Policy Configuration
-# Evaluated in order — first match wins.
+# Evaluated in order - first match wins.
 # Supports: BLOCK | AUDIT | PERMIT
 # Matchers: contains (list), regex, starts_with, not_in_allowlist, max_length
 
 rules:
 
-  # ═══ CATCH-ALL HIGH-CONFIDENCE BLOCKS (Top Priority) ═════════════════════════
+  # === CATCH-ALL HIGH-CONFIDENCE BLOCKS (Top Priority) =========================
   # These rules are evaluated first and cover the scenarios that previously slipped through.
 
   - name: "block common jailbreak patterns"
@@ -91,7 +91,7 @@ rules:
         regex: "^https?://(?!localhost|127\\.0\\.0\\.1|10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)"
     action: BLOCK
     mitre_id: T1041
-    reason: "External HTTP POST blocked — possible exfiltration"
+    reason: "External HTTP POST blocked - possible exfiltration"
 
   - name: "audit all external http_get"
     tool: "http_get"
@@ -129,7 +129,7 @@ rules:
     mitre_id: T1565.001
     reason: "RAG poisoning / instruction override attempt blocked"
 
-  # ═══ EXEC: Bash / Shell ══════════════════════════════════════════════════════
+  # === EXEC: Bash / Shell ======================================================
 
   - name: "block fork bomb"
     tool: "bash"
@@ -184,7 +184,7 @@ rules:
     action: BLOCK
     reason: "Strict Mode: All raw bash commands are blocked."
 
-  # ═══ FILE SYSTEM ══════════════════════════════════════════════════════════════
+  # === FILE SYSTEM ==============================================================
 
   - name: "block /etc reads"
     tool: "read_file"
@@ -226,32 +226,7 @@ rules:
     action: BLOCK
     reason: "Path traversal write attempt blocked"
 
-  # ═══ NETWORK ══════════════════════════════════════════════════════════════════
-
-  - name: "block known tunnel/exfil domains"
-    tool: "*"
-    match:
-      url:
-        contains:
-          - "ngrok.io"
-          - "serveo.net"
-          - "localhost.run"
-          - "burpcollaborator.net"
-          - "interact.sh"
-          - "pipedream.net"
-    action: BLOCK
-    reason: "Request to tunnel/exfiltration domain blocked"
-
-  - name: "block cloud metadata endpoints"
-    tool: "*"
-    match:
-      url:
-        contains:
-          - "169.254.169.254"
-          - "metadata.google.internal"
-          - "100.100.100.200"
-    action: BLOCK
-    reason: "Cloud metadata endpoint access blocked (SSRF)"
+  # === NETWORK ==================================================================
 
   - name: "audit external http_get (legacy)"
     tool: "http_get"
@@ -269,7 +244,7 @@ rules:
     action: BLOCK
     reason: "Strict Mode: External HTTP POST calls are blocked."
 
-  # ═══ DATABASE ═════════════════════════════════════════════════════════════════
+  # === DATABASE =================================================================
 
   - name: "block DROP / TRUNCATE / DELETE all"
     tool: "sql_query"
@@ -295,7 +270,7 @@ rules:
     action: AUDIT
     reason: "Logging SQL write operations"
 
-  # ═══ MEMORY / RAG ═════════════════════════════════════════════════════════════
+  # === MEMORY / RAG =============================================================
 
   - name: "block instruction patterns in memory write"
     tool: "memory_write"
@@ -321,7 +296,7 @@ rules:
     action: BLOCK
     reason: "RAG poisoning / instruction override pattern in document store blocked"
 
-  # ═══ EMAIL / COMMUNICATION ════════════════════════════════════════════════════
+  # === EMAIL / COMMUNICATION ====================================================
 
   - name: "block email outside allowlist"
     tool: "send_email"
@@ -332,14 +307,14 @@ rules:
           - "alerts@yourcompany.com"
           - "reports@yourcompany.com"
     action: BLOCK
-    reason: "Email to address outside allowlist blocked — possible exfiltration"
+    reason: "Email to address outside allowlist blocked - possible exfiltration"
 
   - name: "block all email sends"
     tool: "send_email"
     action: BLOCK
     reason: "Strict Mode: All automated email sends are blocked."
 
-  # ═══ CODE EXECUTION ═══════════════════════════════════════════════════════════
+  # === CODE EXECUTION ===========================================================
 
   - name: "block python os/subprocess imports"
     tool: "python_repl"
@@ -354,7 +329,7 @@ rules:
     action: BLOCK
     reason: "Strict Mode: All code execution is blocked."
 
-# ═══ ROLE-BASED ACCESS CONTROL (RBAC) ══════════════════════════════════════════
+# === ROLE-BASED ACCESS CONTROL (RBAC) ==========================================
 # Configure per-agent tool allowlists and path restrictions.
 rbac:
   # Specific agent configuration

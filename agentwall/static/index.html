@@ -22,7 +22,7 @@
 <body>
     <div id="stream">
         <div class="header">
-            <div><strong>🛡️ AgentWall v2.3</strong> Enterprise Dashboard</div>
+            <div><strong> AgentWall v2.3</strong> Enterprise Dashboard</div>
             <div id="ws-status" class="status">Connecting...</div>
         </div>
         <div id="events"></div>
@@ -36,7 +36,7 @@ function esc(v) { return String(v ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp
         const ws = new WebSocket(`${protocol}//${location.host}/ws/intercept`);
 
         ws.onopen = () => {
-            statusDiv.innerText = 'Connected • Live';
+            statusDiv.innerText = 'Connected - Live';
             ws.send(JSON.stringify({ type: 'subscribe' }));
         };
 

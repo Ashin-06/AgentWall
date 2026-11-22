@@ -2,8 +2,8 @@
 Authentication middleware for AgentWall.
 
 Two modes:
-  1. API Key   — static secret in header X-AgentWall-Key (for agents/services)
-  2. JWT Token — short-lived token for dashboard UI
+  1. API Key   - static secret in header X-AgentWall-Key (for agents/services)
+  2. JWT Token - short-lived token for dashboard UI
 
 Generate a key:
   python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# -- Config --------------------------------------------------------------------
 # Comma-separated list of valid API keys
 _RAW_KEYS  = os.getenv("AGENTWALL_API_KEYS", "")
 API_KEYS   = set(k.strip() for k in _RAW_KEYS.split(",") if k.strip())
@@ -61,7 +61,7 @@ def validate_production_config():
         raise RuntimeError("Authentication must be enabled in production")
 
 
-# ── JWT (minimal, no external deps) ──────────────────────────────────────────
+# -- JWT (minimal, no external deps) ------------------------------------------
 
 def create_jwt(payload: dict) -> str:
     """Standard JWT creation using PyJWT."""
@@ -79,7 +79,7 @@ def verify_jwt(token: str) -> Optional[dict]:
         return None
 
 
-# ── FastAPI dependency ────────────────────────────────────────────────────────
+# -- FastAPI dependency --------------------------------------------------------
 
 def require_auth_token(token: str) -> dict:
     """Non-async helper for WebSocket/parameter-based auth."""
@@ -98,7 +98,7 @@ async def require_auth(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
 ):
-    """FastAPI dependency — attach to any route that needs auth."""
+    """FastAPI dependency - attach to any route that needs auth."""
     if not AUTH_ENABLED:
         return {"sub": "anonymous", "auth": "disabled"}
 

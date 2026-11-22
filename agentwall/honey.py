@@ -1,5 +1,5 @@
 """
-Honey Token Defence — "Secret Weapon."
+Honey Token Defence - "Secret Weapon."
 
 Plant fake, attractive credentials in the agent's environment.
 Any attempt to USE those credentials = immediate confirmed attack.
@@ -7,7 +7,7 @@ Zero false positives.
 
 How it works:
   1. At startup, generate fake tokens and register them
-  2. When a tool call contains a honey token in its arguments → BLOCK + ALERT
+  2. When a tool call contains a honey token in its arguments -> BLOCK + ALERT
   3. The token is designed to look real and attractive to an attacker
 
 Honey tokens to plant in your agent's system prompt or tool context:
@@ -33,7 +33,7 @@ class HoneyTokenDefence:
 
     def __init__(self):
         # Load or generate honey tokens
-        self._tokens: dict[str, str] = {}  # token → description
+        self._tokens: dict[str, str] = {}  # token -> description
         self._load_from_env()
         if not self._tokens:
             self._generate_defaults()
@@ -63,7 +63,7 @@ class HoneyTokenDefence:
                     "token_type":  desc,
                     "confidence":  1.0,  # honey tokens are 100% accurate
                     "reason":      f"HONEY TOKEN TRIGGERED: fake {desc} was used in tool call. "
-                                   f"This is a confirmed attack — no legitimate agent would use this token.",
+                                   f"This is a confirmed attack - no legitimate agent would use this token.",
                 }
         return {"triggered": False}
 
