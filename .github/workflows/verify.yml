@@ -146,3 +146,32 @@ jobs:
         python-version: '3.12'
     - run: pip install vibeaudit
     - run: vibeaudit scan . --fail-on high --no-color
+  k8s-manifests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install kubeconform
+      run: |
+        curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz -C /usr/local/bin kubeconform
+    - name: Render with kustomize and validate against the Kubernetes schemas
+      run: kubectl kustomize deploy/k8s | kubeconform -strict -summary -kubernetes-version 1.30.0 -
+    - name: Run the image with the Deployment's constraints (non-root, read-only root filesystem)
+      run: |
+        docker build -q -t agentwall-k8s .
+        docker volume create agentwall-data
+        docker run -d --name aw -p 8000:8000 --user 10001:10001 --read-only --tmpfs /tmp \
+          --cap-drop ALL --security-opt no-new-privileges -v agentwall-data:/data \
+          -e AGENTWALL_ENV=production -e AGENTWALL_DB=/data/agentwall.duckdb \
+          -e AGENTWALL_MODEL_DIR=/data/models -e AGENTWALL_SPILLOVER_LOG=/data/audit_spillover.log \
+          -e PYTHONDONTWRITEBYTECODE=1 \
+          -e AGENTWALL_ADMIN_PASSWORD=ci-admin-password-0123 \
+          -e AGENTWALL_JWT_SECRET=ci-jwt-secret-0123456789abcdef0123456789 \
+          -e AGENTWALL_HMAC_KEY=ci-hmac-key-0123456789abcdef0123456789ab \
+          -e AGENTWALL_API_KEYS=ci-agent-key-0123456789abcdef0123456789 \
+          agentwall-k8s
+        for i in $(seq 1 40); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+        curl -sf -X POST http://127.0.0.1:8000/intercept -H 'X-AgentWall-Key: ci-agent-key-0123456789abcdef0123456789' \
+          -H 'content-type: application/json' \
+          -d '{"session_id":"k8s","agent_id":"ci","call_id":"c1","tool_name":"bash","arguments":{"command":"rm -rf /"}}' | grep -q '"verdict":"BLOCK"' \
+          || { docker logs aw; exit 1; }
+        echo "Container serves and enforces policy under the Deployment's securityContext."

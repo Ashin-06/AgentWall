@@ -1,0 +1,18 @@
+# Only pods in this namespace, or namespaces labelled agentwall-client=true, may reach the proxy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: agentwall-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: agentwall
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector: {}
+        - namespaceSelector:
+            matchLabels:
+              agentwall-client: "true"
+      ports:
+        - port: 8000

@@ -258,6 +258,7 @@ Fixed rather than suppressed: the session and violation `LIMIT` values are now b
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Real-model evaluation of the Layer 3 classifier: data, method, precision/recall/F1, latency |
 | [ROADMAP.md](ROADMAP.md) | Future work - real-world attribution benchmark, ML eval |
 | [VERIFICATION.md](VERIFICATION.md) | Manual security control verification procedures |
+| [deploy/k8s/README.md](deploy/k8s/README.md) | Kubernetes manifests (single replica), validated in CI with kubeconform |
 
 ---
 
