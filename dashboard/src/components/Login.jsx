@@ -22,7 +22,7 @@ export default function Login({ onLogin, error: externalError }) {
     <div style={s.container}>
       <div style={s.card}>
         <div style={s.logoArea}>
-          <span style={s.icon}>🛡️</span>
+          <span style={s.icon}></span>
           <h1 style={s.title}>AgentWall Login</h1>
           <p style={s.subtitle}>Enter administrative credential to access telemetry</p>
         </div>
@@ -34,7 +34,7 @@ export default function Login({ onLogin, error: externalError }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
+              placeholder="------------"
               style={s.input}
               autoFocus
             />

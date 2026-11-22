@@ -29,7 +29,7 @@ class WriteRequest:
 
 
 class DBWriteQueue:
-    """Singleton async write queue — one writer, many waiters."""
+    """Singleton async write queue - one writer, many waiters."""
     _instance = None
 
     @classmethod
@@ -154,7 +154,7 @@ class DBWriteQueue:
                 self._queue.task_done()
 
     def _sync_write(self, row: tuple) -> str:
-        """Blocking write — runs in thread executor."""
+        """Blocking write - runs in thread executor."""
         (session_id, agent_id, call_id, tool_name,
          arguments, verdict, reason, details,
          mitre_id, source_fmt, latency_ms, shadow_block, key_id) = row

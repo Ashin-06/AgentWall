@@ -1,5 +1,5 @@
 """
-Structured JSON logging — compatible with Datadog, Splunk, CloudWatch.
+Structured JSON logging - compatible with Datadog, Splunk, CloudWatch.
 Every log line is machine-parseable JSON.
 
 Set LOG_FORMAT=json (default) or LOG_FORMAT=text for local dev.

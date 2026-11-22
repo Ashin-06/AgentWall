@@ -7,7 +7,7 @@ export default function CampaignTimeline({ campaigns }) {
   if (!campaigns || campaigns.length === 0) {
     return (
       <div style={s.empty}>
-        <div style={{ fontSize: 32 }}>🛰️</div>
+        <div style={{ fontSize: 32 }}></div>
         <p style={{ color: "#4b5563", marginTop: 10 }}>No multi-stage attack campaigns detected.</p>
       </div>
     );
@@ -32,8 +32,8 @@ export default function CampaignTimeline({ campaigns }) {
                 <div style={s.cardTitleGroup}>
                   <div style={s.cardId}>{c.id || `CAMP-${idx}`}</div>
                   <div style={s.cardName}>
-                    {c.is_active ? "🟢 Active" : "⚪ Archived"}
-                    {c.agent_id ? ` — ${c.agent_id}` : ""}
+                    {c.is_active ? " Active" : " Archived"}
+                    {c.agent_id ? ` - ${c.agent_id}` : ""}
                   </div>
                 </div>
                 <div style={{
@@ -75,7 +75,7 @@ export default function CampaignTimeline({ campaigns }) {
                 <span style={s.technique}>{mainTechnique}</span>
                 <span style={s.events}>
                   {c.start_ts ? new Date(c.start_ts * 1000).toLocaleDateString() : ""}
-                  {c.end_ts && c.start_ts !== c.end_ts ? ` → ${new Date(c.end_ts * 1000).toLocaleDateString()}` : ""}
+                  {c.end_ts && c.start_ts !== c.end_ts ? ` -> ${new Date(c.end_ts * 1000).toLocaleDateString()}` : ""}
                 </span>
               </div>
             </div>
@@ -89,7 +89,7 @@ export default function CampaignTimeline({ campaigns }) {
             <div style={s.modalOverview}>
               <div style={s.modStat}>
                 <label style={s.modLabel}>Status</label>
-                <span>{selected.is_active ? "🟢 Live Correlation" : "⚪ Archived Chain"}</span>
+                <span>{selected.is_active ? " Live Correlation" : " Archived Chain"}</span>
               </div>
               <div style={s.modStat}>
                 <label style={s.modLabel}>Agent</label>
@@ -97,7 +97,7 @@ export default function CampaignTimeline({ campaigns }) {
               </div>
               <div style={s.modStat}>
                 <label style={s.modLabel}>Session</label>
-                <span style={{ color: '#9ca3af', fontSize: 12 }}>{selected.session_id || "—"}</span>
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>{selected.session_id || "-"}</span>
               </div>
               <div style={s.modStat}>
                 <label style={s.modLabel}>Hit Count</label>
@@ -126,7 +126,7 @@ export default function CampaignTimeline({ campaigns }) {
                       {at?.verdict || "UNKNOWN"}
                     </span>
                     <span style={s.rowTool}>{at?.tool_name || "tool"}</span>
-                    <span style={s.rowReason}>{at?.text || at?.reason || "—"}</span>
+                    <span style={s.rowReason}>{at?.text || at?.reason || "-"}</span>
                   </div>
                 ))}
               </div>
@@ -135,9 +135,9 @@ export default function CampaignTimeline({ campaigns }) {
             <div style={s.detailSection}>
               <label style={s.historyLabel}>Time Range</label>
               <div style={{ color: '#9ca3af', fontSize: 13 }}>
-                {selected.start_ts ? new Date(selected.start_ts * 1000).toLocaleString() : "—"}
-                {" → "}
-                {selected.end_ts ? new Date(selected.end_ts * 1000).toLocaleString() : "—"}
+                {selected.start_ts ? new Date(selected.start_ts * 1000).toLocaleString() : "-"}
+                {" -> "}
+                {selected.end_ts ? new Date(selected.end_ts * 1000).toLocaleString() : "-"}
               </div>
             </div>
           </div>

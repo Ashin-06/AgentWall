@@ -191,7 +191,7 @@ def write_event(
         _close_conn(con)
 
 
-# ─── Query helpers ────────────────────────────────────────────────────────────
+# --- Query helpers ------------------------------------------------------------
 
 def get_sessions(limit: int = 1000) -> list[dict]:
     con  = _conn()
@@ -359,7 +359,7 @@ def get_campaigns() -> list[dict]:
 
 
 def get_latency_percentiles() -> dict:
-    """For performance analytics — p50/p95/p99 latency."""
+    """For performance analytics - p50/p95/p99 latency."""
     con  = _conn()
     row  = con.execute("""
         SELECT

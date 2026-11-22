@@ -1,10 +1,10 @@
 """
-CrewAI adapter — patches BaseTool.run() at the class level.
+CrewAI adapter - patches BaseTool.run() at the class level.
 
 Usage:
   from adapters.crewai_adapter import patch_crewai
   patch_crewai(session_id="s1", agent_id="my-crew")
-  # Then use CrewAI as normal — all tool calls are intercepted
+  # Then use CrewAI as normal - all tool calls are intercepted
 
 Or per-agent:
   from adapters.crewai_adapter import AgentWallCrewMixin
@@ -24,7 +24,7 @@ def patch_crewai(session_id: str = None, agent_id: str = "crewai-agent"):
     try:
         from crewai_tools import BaseTool
     except ImportError:
-        print("[AgentWall] crewai_tools not installed — skipping patch")
+        print("[AgentWall] crewai_tools not installed - skipping patch")
         return
 
     sid = session_id or str(uuid.uuid4())
@@ -43,7 +43,7 @@ def patch_crewai(session_id: str = None, agent_id: str = "crewai-agent"):
             if result["verdict"] == "BLOCK":
                 raise PermissionError(f"AgentWall blocked {self.name}: {result['reason']}")
         except httpx.RequestError:
-            pass  # fail open — firewall unreachable
+            pass  # fail open - firewall unreachable
 
         output = original_run(self, *args, **kwargs)
 

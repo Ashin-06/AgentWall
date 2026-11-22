@@ -33,10 +33,10 @@ import time
 
 # Global rate limiters
 login_attempts = defaultdict(list)
-intercept_rate = defaultdict(list)
+LOGIN_MAX_FAILURES = int(os.getenv("AGENTWALL_LOGIN_MAX_FAILURES", "5"))  # per IP per minute
 
 
-# ─── Request/Response Schemas ────────────────────────────────────────────────
+# --- Request/Response Schemas ------------------------------------------------
 class LoginRequest(BaseModel):
     password: str
 
@@ -102,8 +102,9 @@ app = FastAPI(title="AgentWall", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    # The dashboard is served from this origin; other origins must be listed explicitly.
+    allow_origins=[o.strip() for o in os.getenv("AGENTWALL_CORS_ORIGINS", "").split(",") if o.strip()],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -157,9 +158,17 @@ if not os.getenv("AGENTWALL_ADMIN_PASSWORD"):
 
 
 @app.post("/auth/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
+    # ponytail: in-process per-IP limit; use a shared store if running several replicas
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    recent = [t for t in login_attempts[ip] if now - t < 60]
+    login_attempts[ip] = recent
+    if len(recent) >= LOGIN_MAX_FAILURES:
+        raise HTTPException(status_code=429, detail="Too many failed logins; try again later")
     if hmac.compare_digest(req.password.encode(), ADMIN_PASSWORD.encode()):
         return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": JWT_TTL}
+    recent.append(now)
     raise HTTPException(status_code=401, detail="Invalid password")
 
 @app.post("/intercept")
@@ -232,6 +241,12 @@ async def performance(auth=Depends(require_auth)):
     from agentwall.audit.write_queue import DBWriteQueue
     return MetricsRegistry.get().performance(DBWriteQueue.get().queue_size())
 
+UPSTREAM_HOSTS = {
+    "api.openai.com": "openai",
+    "api.anthropic.com": "anthropic",
+    "generativelanguage.googleapis.com": "google",
+}
+
 # Universal AI Gateway (OpenAI, Claude, Gemini compatible)
 @app.post("/v1/chat/completions")
 @app.post("/v1/messages")
@@ -241,10 +256,13 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
     agent_id = request.headers.get("X-AgentWall-Agent", "browser_intercept")
     session_id = request.headers.get("X-AgentWall-Session", f"SESS_{int(time.time())}")
     
-    # Identify protocol
-    protocol = "openai"
-    if "/messages" in str(request.url): protocol = "anthropic"
-    if "google" in target_host: protocol = "google"
+    # Identify protocol. The upstream key is attached to the forwarded request, so the
+    # /v1/proxy target host must be a known provider, never caller-chosen (SSRF / key leak).
+    host = target_host.split("/", 1)[0].lower()
+    if host not in UPSTREAM_HOSTS:
+        raise HTTPException(status_code=400, detail="Unsupported upstream host")
+    protocol = UPSTREAM_HOSTS[host]
+    if request.url.path == "/v1/messages": protocol = "anthropic"
 
     from agentwall.audit.write_queue import DBWriteQueue
     await DBWriteQueue.get().write((
@@ -262,12 +280,16 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
         # Determine upstream URL
         if protocol == "openai":
             url = os.getenv("AGENTWALL_UPSTREAM_URL", "https://api.openai.com/v1/chat/completions")
+            headers = {"Authorization": f"Bearer {api_key}"}
         elif protocol == "anthropic":
             url = "https://api.anthropic.com/v1/messages"
+            headers = {"x-api-key": api_key,
+                       "anthropic-version": request.headers.get("anthropic-version", "2023-06-01")}
         else:
             url = f"https://{target_host}"
+            headers = {"x-goog-api-key": api_key}
 
-        resp = await client.post(url, json=body, headers={"Authorization": f"Bearer {api_key}"}, timeout=60.0)
+        resp = await client.post(url, json=body, headers=headers, timeout=60.0)
         return JSONResponse(status_code=resp.status_code, content=resp.json() if "json" in resp.headers.get("content-type", "") else resp.text)
 
 # Transparent Proxy Handler (DISABLED to restore VS Code connectivity)

@@ -12,7 +12,7 @@ echo.
 set "ROOT=%~dp0"
 cd /d "%ROOT%"
 
-:: ─── Check Prerequisites ──────────────────────────────────────────────
+:: --- Check Prerequisites ----------------------------------------------
 echo [1/5] Checking prerequisites...
 
 python --version >nul 2>&1
@@ -32,7 +32,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo       Python ... OK
 echo       Node.js ... OK
 
-:: ─── Virtual Environment ──────────────────────────────────────────────
+:: --- Virtual Environment ----------------------------------------------
 echo [2/5] Setting up Python environment...
 
 if not exist "venv" (
@@ -42,7 +42,7 @@ if not exist "venv" (
 call venv\Scripts\activate
 pip install -q -r requirements.txt
 
-:: ─── Dashboard Dependencies ───────────────────────────────────────────
+:: --- Dashboard Dependencies -------------------------------------------
 echo [3/5] Installing dashboard dependencies...
 
 cd dashboard
@@ -52,7 +52,7 @@ if not exist "node_modules" (
 )
 cd ..
 
-:: ─── Load .env ────────────────────────────────────────────────────────
+:: --- Load .env --------------------------------------------------------
 if exist ".env" (
     for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
         set "LINE=%%A"
@@ -64,7 +64,7 @@ if exist ".env" (
     )
 )
 
-:: ─── Kill any stale processes on ports 8000 and 3000 ──────────────────
+:: --- Kill any stale processes on ports 8000 and 3000 ------------------
 echo [4/5] Clearing ports...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000" ^| findstr "LISTENING" 2^>nul') do (
     taskkill /PID %%a /F >nul 2>&1
@@ -73,7 +73,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3000" ^| findstr "LISTENING
     taskkill /PID %%a /F >nul 2>&1
 )
 
-:: ─── Start Services ──────────────────────────────────────────────────
+:: --- Start Services --------------------------------------------------
 echo [5/5] Starting services...
 
 :: Start Backend (FastAPI on port 8000)

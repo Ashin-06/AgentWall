@@ -34,11 +34,11 @@ class GuardedOpenAI:
                 verdict = self._intercept(tc)
                 if verdict["verdict"] == "BLOCK":
                     raise PermissionError(
-                        f"🛡️ AgentWall BLOCKED tool '{tc.function.name}': "
+                        f" AgentWall BLOCKED tool '{tc.function.name}': "
                         f"{verdict['reason']} [{verdict.get('mitre_id','')}]"
                     )
                 if verdict["verdict"] == "AUDIT":
-                    print(f"[AgentWall ⚠️] {tc.function.name}: {verdict['reason']}")
+                    print(f"[AgentWall ] {tc.function.name}: {verdict['reason']}")
 
         return response
 
@@ -51,7 +51,7 @@ class GuardedOpenAI:
         }, timeout=5.0)
         data = r.json()
         if data.get("sanitised"):
-            print(f"[AgentWall 🧹] Sanitised {len(data['removals'])} patterns from {tool_name} output")
+            print(f"[AgentWall ] Sanitised {len(data['removals'])} patterns from {tool_name} output")
         return data["output"]
 
     def _intercept(self, tc) -> dict:

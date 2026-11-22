@@ -2,9 +2,9 @@
 Semantic Policy Engine v2.
 
 Improvements over v1:
-  1. Compiled AST — rules parsed once at load, not re-evaluated each time
-  2. Policy variants — load 'strict', 'standard', 'permissive' profiles
-  3. Conflict detection integration — raises on load if conflicts found
+  1. Compiled AST - rules parsed once at load, not re-evaluated each time
+  2. Policy variants - load 'strict', 'standard', 'permissive' profiles
+  3. Conflict detection integration - raises on load if conflicts found
   4. Per-agent policy scoping
   5. Wildcard tool glob patterns
 """
@@ -44,9 +44,10 @@ class CompiledRule:
                 conds["_compiled_re"] = re.compile(conds["regex"], re.IGNORECASE)
 
     def matches(self, call: dict) -> bool:
-        if not fnmatch.fnmatch(call["tool_name"], self.tool_glob):
+        # fnmatch() is case-insensitive only on Windows; compare lowercased everywhere.
+        if not fnmatch.fnmatchcase(str(call["tool_name"]).lower(), self.tool_glob.lower()):
             return False
-        if not fnmatch.fnmatch(call["agent_id"], self.agent_glob):
+        if not fnmatch.fnmatchcase(str(call["agent_id"]).lower(), self.agent_glob.lower()):
             return False
         args = call.get("arguments", {})
         for key, conds in self.conditions.items():
@@ -68,7 +69,7 @@ class CompiledRule:
     def _eval(self, value: str, conds: dict) -> bool:
         if "contains" in conds:
             patterns = conds["contains"] if isinstance(conds["contains"], list) else [conds["contains"]]
-            if not any(p in value for p in patterns):
+            if not any(str(p).lower() in value for p in patterns):
                 return False
         if "_compiled_re" in conds:
             if not conds["_compiled_re"].search(value):
@@ -78,10 +79,10 @@ class CompiledRule:
             if not re.search(conds["regex"], value, re.IGNORECASE):
                 return False
         if "starts_with" in conds:
-            if not value.startswith(conds["starts_with"]):
+            if not value.startswith(str(conds["starts_with"]).lower()):
                 return False
         if "not_in_allowlist" in conds:
-            if value in conds["not_in_allowlist"]:
+            if value in [str(v).lower() for v in conds["not_in_allowlist"]]:
                 return False
         if "max_length" in conds:
             if len(value) <= int(conds["max_length"]):
@@ -96,7 +97,7 @@ class PolicyEngine:
         self._profile = PROFILES.get(policy_variant, PROFILES["standard"])
         self._rules   = self._load_and_compile(self._path)
         if self._profile["promote_audit"]:
-            print(f"[PolicyEngine] [STRICT] Strict Mode active — all AUDIT rules promoted to BLOCK")
+            print(f"[PolicyEngine] [STRICT] Strict Mode active - all AUDIT rules promoted to BLOCK")
 
     def _load_and_compile(self, path: str) -> list[CompiledRule]:
         p = Path(path)
@@ -145,7 +146,7 @@ class PolicyEngine:
         # print(f"[PolicyEngine] NO MATCH found for {call['tool_name']}")
         return {
             "action": self._profile["default_action"],
-            "reason": "No matching rule — default action applied",
+            "reason": "No matching rule - default action applied",
             "rule":   None,
         }
 

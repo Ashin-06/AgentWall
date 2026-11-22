@@ -1,6 +1,6 @@
 """
 Watches policy.yaml for changes and reloads without restart.
-Uses polling (no inotify dependency) — works on all OS + Docker volumes.
+Uses polling (no inotify dependency) - works on all OS + Docker volumes.
 """
 import asyncio
 import os
@@ -36,9 +36,9 @@ class PolicyWatcher:
                     self.proxy.rbac.reload()
                     
                     self._last_mtime = mtime
-                    print(f"[PolicyWatcher] ✅ Policy & RBAC reloaded from {self.path}")
+                    print(f"[PolicyWatcher]  Policy & RBAC reloaded from {self.path}")
                 except Exception as e:
-                    print(f"[PolicyWatcher] ❌ Reload failed: {e} (keeping previous version)")
+                    print(f"[PolicyWatcher]  Reload failed: {e} (keeping previous version)")
 
     def stop(self):
         if self._task:

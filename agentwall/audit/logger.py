@@ -1,4 +1,4 @@
-"""Thin wrapper around schema.write_event — v2 passes mitre_id and latency."""
+"""Thin wrapper around schema.write_event - v2 passes mitre_id and latency."""
 from agentwall.audit.schema import write_event, KEY_ID
 from agentwall.audit.write_queue import DBWriteQueue
 import logging

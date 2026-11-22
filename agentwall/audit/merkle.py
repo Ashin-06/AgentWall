@@ -2,9 +2,9 @@
 Merkle Tree Audit Log.
 
 Why Merkle instead of HMAC chain?
-  • HMAC chain: to verify event N, you must re-verify events 1..N-1
-  • Merkle tree: to verify any single event, you need O(log n) sibling hashes
-  • Publishable root hash: post the root hash publicly (like CT log operators)
+  - HMAC chain: to verify event N, you must re-verify events 1..N-1
+  - Merkle tree: to verify any single event, you need O(log n) sibling hashes
+  - Publishable root hash: post the root hash publicly (like CT log operators)
     and anyone can prove an event is (or isn't) in the log.
 
 Structure:
@@ -127,7 +127,7 @@ class MerkleAuditLog:
             is_valid = (current_root == stored_root)
             return is_valid, current_root
         except Exception:
-            # Table might not exist — also unverified
+            # Table might not exist - also unverified
             return False, "LOG_SCHEMA_UNINITIALIZED"
         finally:
             con.close()

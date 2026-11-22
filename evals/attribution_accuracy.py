@@ -35,7 +35,7 @@ os.environ["AGENTWALL_DB"] = ":memory:"
 os.environ["AGENTWALL_ADMIN_PASSWORD"] = "eval_attr"
 os.environ["AGENTWALL_AUTH_ENABLED"] = "0"
 
-# ── Simulated Agent Signatures ─────────────────────────────────────────────────
+# -- Simulated Agent Signatures -------------------------------------------------
 
 AGENT_SIGNATURES = {
     "VS_Code_Copilot":     {"process_name": "code.exe",     "cmdline": "code --extensionDevelopmentPath"},
@@ -43,7 +43,7 @@ AGENT_SIGNATURES = {
     "Aider_CLI":           {"process_name": "python",       "cmdline": "aider --model gpt-4"},
 }
 
-# ── Attribution Oracle ──────────────────────────────────────────────────────────
+# -- Attribution Oracle ----------------------------------------------------------
 
 class AttributionOracle:
     """
@@ -115,7 +115,7 @@ class AttributionOracle:
         max_score = max(scores.values())
         top_pids  = [pid for pid, s in scores.items() if s == max_score]
 
-        # Phase 3 — Conflict Resolution
+        # Phase 3 - Conflict Resolution
         contested = len(top_pids) > 1
         if contested:
             # Tiebreaker: most recently active
@@ -132,7 +132,7 @@ class AttributionOracle:
         }
 
 
-# ── Experiment Runner ──────────────────────────────────────────────────────────
+# -- Experiment Runner ----------------------------------------------------------
 
 def run_single_agent_experiment(oracle: AttributionOracle, tmpdir: str) -> dict:
     """Experiment 1: Single agent, unambiguous attribution."""
@@ -267,7 +267,7 @@ def run_attribution_latency_benchmark(oracle: AttributionOracle, tmpdir: str) ->
 
 def run():
     print("=" * 65)
-    print("[*] AgentWall Natural Attribution Engine — Accuracy Experiment")
+    print("[*] AgentWall Natural Attribution Engine - Accuracy Experiment")
     print("=" * 65)
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -301,7 +301,7 @@ def run():
     print(f"  Max : {r4['max_ms']:.4f} ms")
 
     print("\n" + "=" * 65)
-    print("[*] Summary — Attribution Accuracy Report")
+    print("[*] Summary - Attribution Accuracy Report")
     print("=" * 65)
     all_pass = r1["accuracy"] >= 1.0 and r2["accuracy"] >= 1.0 and r3["pass"]
     print(f"  Single Agent Accuracy    : {r1['accuracy']*100:.1f}%  {'[PASS]' if r1['accuracy'] >= 1.0 else '[FAIL]'}")

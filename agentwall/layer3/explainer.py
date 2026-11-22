@@ -1,5 +1,5 @@
 """
-Explainability Engine — byte-range attribution + MITRE ATT&CK mapping.
+Explainability Engine - byte-range attribution + MITRE ATT&CK mapping.
 
 When a verdict is BLOCK or AUDIT, this engine:
   1. Finds the exact substring(s) that triggered the detection

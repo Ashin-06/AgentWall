@@ -1,4 +1,4 @@
-# COMPARISON.md — AgentWall vs. Related Work
+# COMPARISON.md - AgentWall vs. Related Work
 
 ## Context
 
@@ -13,20 +13,20 @@ This document positions AgentWall relative to existing tools and frameworks in t
 | **Primary Purpose** | AI Agent Security Firewall | LLM API Load Balancing & Cost Control | LLM Output Validation | Security Guidelines (not a tool) |
 | **Deployment Model** | Sidecar Proxy | Sidecar Proxy | In-process Library | Documentation |
 | **Protocol Support** | OpenAI, Anthropic, Gemini | 100+ LLM providers | LLM-agnostic | N/A |
-| **Process Attribution** | ✅ OS-level (psutil/watchdog) | ❌ Not provided | ❌ Not provided | ❌ Not provided |
-| **Policy Enforcement (Tool Calls)** | ✅ YAML rule engine | ❌ Not provided | ⚠️ Output guardrails only | ⚠️ Recommended practice |
-| **Tamper-Evident Audit Log** | ✅ HMAC-chained DuckDB | ⚠️ Request logs only | ❌ Not provided | ❌ Not provided |
-| **Honeytoken Active Defense** | ✅ Built-in | ❌ Not provided | ❌ Not provided | ✅ Recommended (LLM07) |
-| **MITRE ATT&CK Mapping** | ✅ Automated per-event | ❌ Not provided | ❌ Not provided | ⚠️ Framework reference only |
-| **Multi-Agent Trust Graph** | ✅ Confusion-deputy defense | ❌ Not provided | ❌ Not provided | ❌ Not provided |
-| **Prompt Injection Detection** | ✅ Layer 3 Semantic Engine | ❌ Not provided | ✅ Output validation | ✅ Recommended (LLM01) |
-| **Real-Time SOC Dashboard** | ✅ React + Session Replay | ⚠️ Basic UI | ❌ Not provided | ❌ Not provided |
-| **Anomaly Detection** | ✅ Isolation Forest ensemble | ❌ Not provided | ❌ Not provided | ❌ Not provided |
-| **Rate Limiting** | ✅ Per-agent | ✅ Per-model | ❌ Not provided | ❌ Not provided |
-| **RBAC** | ✅ Agent-level RBAC | ⚠️ Team-level | ❌ Not provided | ❌ Not provided |
-| **Horizontal Scaling** | ✅ Redis-backed state | ✅ Native | ⚠️ Stateless | N/A |
-| **Zero Config Attribution** | ✅ No agent modification needed | ❌ Agent must set base_url | ❌ Requires code instrumentation | N/A |
-| **Open Source** | ✅ MIT License | ✅ MIT License | ✅ Apache 2.0 | ✅ CC License |
+| **Process Attribution** |  OS-level (psutil/watchdog) |  Not provided |  Not provided |  Not provided |
+| **Policy Enforcement (Tool Calls)** |  YAML rule engine |  Not provided |  Output guardrails only |  Recommended practice |
+| **Tamper-Evident Audit Log** |  HMAC-chained DuckDB |  Request logs only |  Not provided |  Not provided |
+| **Honeytoken Active Defense** |  Built-in |  Not provided |  Not provided |  Recommended (LLM07) |
+| **MITRE ATT&CK Mapping** |  Automated per-event |  Not provided |  Not provided |  Framework reference only |
+| **Multi-Agent Trust Graph** |  Confusion-deputy defense |  Not provided |  Not provided |  Not provided |
+| **Prompt Injection Detection** |  Layer 3 Semantic Engine |  Not provided |  Output validation |  Recommended (LLM01) |
+| **Real-Time SOC Dashboard** |  React + Session Replay |  Basic UI |  Not provided |  Not provided |
+| **Anomaly Detection** |  Isolation Forest ensemble |  Not provided |  Not provided |  Not provided |
+| **Rate Limiting** |  Per-agent |  Per-model |  Not provided |  Not provided |
+| **RBAC** |  Agent-level RBAC |  Team-level |  Not provided |  Not provided |
+| **Horizontal Scaling** |  Redis-backed state |  Native |  Stateless | N/A |
+| **Zero Config Attribution** |  No agent modification needed |  Agent must set base_url |  Requires code instrumentation | N/A |
+| **Open Source** |  MIT License |  MIT License |  Apache 2.0 |  CC License |
 
 ---
 
@@ -34,17 +34,17 @@ This document positions AgentWall relative to existing tools and frameworks in t
 
 ### 2a. vs. LiteLLM Proxy
 
-**LiteLLM** ([github.com/BerriAI/litellm](https://github.com/BerriAI/litellm)) is the most widely deployed open-source LLM proxy. Its primary purpose is **cost control, load balancing, and multi-provider abstraction** — not security.
+**LiteLLM** ([github.com/BerriAI/litellm](https://github.com/BerriAI/litellm)) is the most widely deployed open-source LLM proxy. Its primary purpose is **cost control, load balancing, and multi-provider abstraction** - not security.
 
 **Key Differences:**
 - LiteLLM logs requests but does not perform semantic analysis or policy enforcement on tool call arguments.
 - LiteLLM has no concept of agent identity or process attribution.
 - LiteLLM provides no active defense mechanisms (honeytokens, MITRE mapping, etc.).
-- AgentWall is not a replacement for LiteLLM — they are complementary. AgentWall can be deployed upstream of LiteLLM in a pipeline.
+- AgentWall is not a replacement for LiteLLM - they are complementary. AgentWall can be deployed upstream of LiteLLM in a pipeline.
 
 ### 2b. vs. Guardrails-AI
 
-**Guardrails-AI** ([github.com/guardrails-ai/guardrails](https://github.com/guardrails-ai/guardrails)) focuses on **LLM output validation** — ensuring structured outputs conform to schemas and detecting harmful content in responses.
+**Guardrails-AI** ([github.com/guardrails-ai/guardrails](https://github.com/guardrails-ai/guardrails)) focuses on **LLM output validation** - ensuring structured outputs conform to schemas and detecting harmful content in responses.
 
 **Key Differences:**
 - Guardrails-AI operates at the LLM response level (output), while AgentWall operates at the tool call level (behavior).
@@ -90,6 +90,6 @@ AgentWall occupies a unique position at the intersection of three research areas
 - **Supply Chain Security**: Attributing actions to specific tools/processes, verifying integrity.
 
 Relevant prior work:
-- *"Attacking Large Language Model Applications"* (Greshake et al., 2023) — establishes the prompt injection threat model that AgentWall's Layer 3 defends against.
-- *"AgentBench"* (Liu et al., 2023) — benchmarks agent capabilities; AgentWall provides the security monitoring layer for such benchmarked agents.
-- *"Honeyfiles: Honeypots for Document Management Systems"* (Bowen et al., 2009) — foundational honeytoken work adapted here for AI agent context.
+- *"Attacking Large Language Model Applications"* (Greshake et al., 2023) - establishes the prompt injection threat model that AgentWall's Layer 3 defends against.
+- *"AgentBench"* (Liu et al., 2023) - benchmarks agent capabilities; AgentWall provides the security monitoring layer for such benchmarked agents.
+- *"Honeyfiles: Honeypots for Document Management Systems"* (Bowen et al., 2009) - foundational honeytoken work adapted here for AI agent context.

@@ -1,5 +1,5 @@
 """
-MITRE ATT&CK for LLM Systems — Technique Mapper.
+MITRE ATT&CK for LLM Systems - Technique Mapper.
 
 Based on:
   - MITRE ATT&CK Enterprise (initial access, exfiltration, execution)
@@ -20,7 +20,7 @@ ATTACK_TYPE_TO_MITRE = {
     "jailbreak":            ("T1562",     "Impair Defenses"),
     "encoded_injection":    ("T1027",     "Obfuscated Files or Information"),
     "rag_poisoning":        ("T1565.001", "Stored Data Manipulation (RAG)"),
-    "chained_exfil":        ("T1005",     "Data from Local System → Exfiltration"),
+    "chained_exfil":        ("T1005",     "Data from Local System -> Exfiltration"),
     "download_execute":     ("T1059.006", "Command and Scripting: Python"),
     "campaign":             ("T1583",     "Acquire Infrastructure"),
 }

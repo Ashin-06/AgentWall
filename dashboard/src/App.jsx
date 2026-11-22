@@ -41,7 +41,7 @@ export default function App() {
 
   const [filterAgent, setFilterAgent] = useState(null);
 
-  // ── Auth Handling ────────────────────────────────────────────────────────
+  // -- Auth Handling --------------------------------------------------------
   const handleLogin = async (password) => {
     const res = await fetch(`${API}/auth/login`, {
       method: "POST",
@@ -68,7 +68,7 @@ export default function App() {
     localStorage.removeItem("agentwall_token");
   }, []);
 
-  // ── WebSocket for real-time alerts ──────────────────────────────────────
+  // -- WebSocket for real-time alerts --------------------------------------
   useEffect(() => {
     if (!token) return;
     setWSStatus("connecting");
@@ -86,7 +86,7 @@ export default function App() {
     return () => ws.close();
   }, [token]);
 
-  // ── REST polling ────────────────────────────────────────────────────────
+  // -- REST polling --------------------------------------------------------
   const refresh = useCallback(async () => {
     if (!token) return;
     refreshController.current?.abort();
@@ -194,14 +194,14 @@ export default function App() {
 
       <div className="dashboard-toolbar">
         <input aria-label="Search sessions" placeholder="Search sessions by agent or session ID" value={query} onChange={e => { setQuery(e.target.value); setTab("overview"); }} />
-        <button onClick={refresh} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh now"}</button>
+        <button onClick={refresh} disabled={refreshing}>{refreshing ? "Refreshing..." : "Refresh now"}</button>
         <button aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? "Resume auto-refresh" : "Pause auto-refresh"}</button>
-        <span role="status">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Waiting for data"}{paused ? " · Overview polling paused; live alerts continue" : " · Overview refreshes every 10 seconds"}</span>
+        <span role="status">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Waiting for data"}{paused ? " - Overview polling paused; live alerts continue" : " - Overview refreshes every 10 seconds"}</span>
         <button onClick={handleLogout}>Sign out</button>
       </div>
       {error && <div className="dashboard-error" role="alert">{error}</div>}
       {securityStatus && <div className="dashboard-toolbar" role="status">
-        <span>Tool-call policy: <strong>{error ? "Status unavailable" : securityStatus.enforcement_mode === "enforce" ? "Enforcement enabled" : "Observe only — calls are not blocked"}</strong></span>
+        <span>Tool-call policy: <strong>{error ? "Status unavailable" : securityStatus.enforcement_mode === "enforce" ? "Enforcement enabled" : "Observe only - calls are not blocked"}</strong></span>
         <span>Authentication: {securityStatus.authentication_enabled ? "Enabled" : "Disabled"}</span>
         <span>Profile: {securityStatus.policy_profile}</span>
         {!securityStatus.gateway_policy_enforced && <span>LLM gateway: monitoring only</span>}
@@ -209,9 +209,9 @@ export default function App() {
       {/* Real-time alert strip */}
       {alerts.length > 0 && (
         <div style={s.alertStrip}>
-          <span style={{color: "#f09999", marginRight: "8px"}}>⚡ LIVE:</span>
+          <span style={{color: "#f09999", marginRight: "8px"}}> LIVE:</span>
           <span style={s.alertText}>
-            {alerts[0].verdict} — {alerts[0].tool_name} — {alerts[0].reason?.slice(0,80)}
+            {alerts[0].verdict} - {alerts[0].tool_name} - {alerts[0].reason?.slice(0,80)}
             {alerts[0].mitre_id && <span style={s.mitreBadge}>{alerts[0].mitre_id}</span>}
           </span>
           <span style={s.alertCount}>+{alerts.length-1} more</span>
@@ -239,7 +239,7 @@ export default function App() {
           </div>
         )}
         {tab === "replay" && (
-          replayLoading ? <p role="status">Loading session events…</p> : replayError ? <div role="alert">{replayError} <button onClick={() => openSession(activeSession)}>Retry</button></div> : <SessionReplay key={activeSession} events={replayEvents} sessionId={activeSession} apiBase={API} />
+          replayLoading ? <p role="status">Loading session events...</p> : replayError ? <div role="alert">{replayError} <button onClick={() => openSession(activeSession)}>Retry</button></div> : <SessionReplay key={activeSession} events={replayEvents} sessionId={activeSession} apiBase={API} />
         )}
         {tab === "graph" && (
           <AttackGraph data={graphData} />

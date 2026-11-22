@@ -1,8 +1,8 @@
 """
-Shadow Mode — observe-only operation.
+Shadow Mode - observe-only operation.
 
 In shadow mode, AgentWall evaluates every call through all 5 layers
-but NEVER blocks — it only logs what WOULD have been blocked.
+but NEVER blocks - it only logs what WOULD have been blocked.
 
 Use this during rollout to:
   1. Collect baseline data without disrupting agents

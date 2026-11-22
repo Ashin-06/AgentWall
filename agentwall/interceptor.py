@@ -30,7 +30,7 @@ from typing import Any
 def normalise_raw(payload: dict) -> dict:
     """Detect format and normalise to canonical AgentWall schema."""
 
-    # ── Anthropic tool_use ─────────────────────────────────────────────────
+    # -- Anthropic tool_use -------------------------------------------------
     if payload.get("type") == "tool_use":
         return _mk(
             session_id = payload.get("session_id", str(uuid.uuid4())),
@@ -43,7 +43,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "anthropic",
         )
 
-    # ── OpenAI new tool_calls format ───────────────────────────────────────
+    # -- OpenAI new tool_calls format ---------------------------------------
     if payload.get("type") == "function" and "function" in payload:
         fn   = payload["function"]
         args = fn.get("arguments", "{}")
@@ -61,7 +61,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "openai",
         )
 
-    # ── OpenAI legacy function_call ────────────────────────────────────────
+    # -- OpenAI legacy function_call ----------------------------------------
     if "function_call" in payload:
         fc   = payload["function_call"]
         args = fc.get("arguments", "{}")
@@ -79,7 +79,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "openai_legacy",
         )
 
-    # ── LangChain AgentAction ──────────────────────────────────────────────
+    # -- LangChain AgentAction ----------------------------------------------
     if "tool" in payload and ("tool_input" in payload or "log" in payload):
         tool_input = payload.get("tool_input", {})
         if isinstance(tool_input, str):
@@ -96,7 +96,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "langchain",
         )
 
-    # ── CrewAI format ──────────────────────────────────────────────────────
+    # -- CrewAI format ------------------------------------------------------
     if "action" in payload and "action_input" in payload:
         action_input = payload["action_input"]
         if isinstance(action_input, str):
@@ -113,7 +113,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "crewai",
         )
 
-    # ── AutoGen format ─────────────────────────────────────────────────────
+    # -- AutoGen format -----------------------------------------------------
     if "role" in payload and payload.get("role") == "tool" and "content" in payload:
         content = payload["content"]
         if isinstance(content, str):
@@ -130,7 +130,7 @@ def normalise_raw(payload: dict) -> dict:
             source_fmt = "autogen",
         )
 
-    # ── Already canonical ──────────────────────────────────────────────────
+    # -- Already canonical --------------------------------------------------
     if "tool_name" in payload:
         payload.setdefault("session_id", str(uuid.uuid4()))
         payload.setdefault("agent_id", "unknown")
@@ -140,7 +140,7 @@ def normalise_raw(payload: dict) -> dict:
         return payload
 
     raise ValueError(
-        f"Cannot normalise payload — unrecognised format. Keys: {list(payload.keys())}"
+        f"Cannot normalise payload - unrecognised format. Keys: {list(payload.keys())}"
     )
 
 

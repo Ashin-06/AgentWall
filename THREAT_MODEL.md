@@ -1,4 +1,4 @@
-# THREAT_MODEL.md — AgentWall Threat Model
+# THREAT_MODEL.md - AgentWall Threat Model
 
 ## Framework: STRIDE
 
@@ -20,7 +20,7 @@ This document applies the STRIDE threat modeling framework to the AgentWall secu
 
 ## 2. Adversary Model
 
-AgentWall's primary adversary is a **compromised AI agent** — an autonomous agent that has been manipulated (via prompt injection, supply chain attack, or model compromise) to perform actions contrary to the user's intent.
+AgentWall's primary adversary is a **compromised AI agent** - an autonomous agent that has been manipulated (via prompt injection, supply chain attack, or model compromise) to perform actions contrary to the user's intent.
 
 ### Adversary Types
 
@@ -36,14 +36,14 @@ AgentWall's primary adversary is a **compromised AI agent** — an autonomous ag
 
 ## 3. STRIDE Analysis
 
-### S — Spoofing Identity
+### S - Spoofing Identity
 
 | Threat | AgentWall Response |
 |---|---|
 | Agent claims to be a different agent (`agent_id` manipulation) | **Partially Mitigated**: `agent_id` is caller-supplied. The NAE cross-validates against OS process table. A mismatch raises an AUDIT event. |
-| Rogue process spoofs a known agent name | **Mitigated**: Process table cross-validation via `psutil` checks PID, parent PID, and binary path — not just the process name string. |
+| Rogue process spoofs a known agent name | **Mitigated**: Process table cross-validation via `psutil` checks PID, parent PID, and binary path - not just the process name string. |
 
-### T — Tampering
+### T - Tampering
 
 | Threat | AgentWall Response |
 |---|---|
@@ -51,14 +51,14 @@ AgentWall's primary adversary is a **compromised AI agent** — an autonomous ag
 | Attacker modifies `policy.yaml` to weaken rules | **Mitigated**: Policy file changes trigger a reload event that is itself logged. Production deployments should use read-only filesystem mounts. |
 | Agent manipulates its tool call arguments after inspection | **NOT Mitigated**: AgentWall inspects the call at the proxy boundary. If the agent has a side-channel to call the real API directly, the manipulation occurs outside inspection scope. |
 
-### R — Repudiation
+### R - Repudiation
 
 | Threat | AgentWall Response |
 |---|---|
 | Agent denies having made a tool call | **Mitigated**: Every call is logged with timestamp, session_id, agent_id, and HMAC chain hash. The chain provides non-repudiation of the log record itself. |
 | User claims agent was not acting on their behalf | **Partially Mitigated**: Session replay provides evidence. Intent scoring (`alignment/intent_scorer.py`) assesses goal alignment. |
 
-### I — Information Disclosure
+### I - Information Disclosure
 
 | Threat | AgentWall Response |
 |---|---|
@@ -66,7 +66,7 @@ AgentWall's primary adversary is a **compromised AI agent** — an autonomous ag
 | Agent reads sensitive files (`/etc/passwd`, `.env`) | **Mitigated**: Policy rules with `contains: /etc/` and `contains: .env` block and log these attempts. |
 | AgentWall dashboard exposes all agent traffic | **Mitigated**: JWT authentication required. HTTPS recommended for production (see `CONFIGURATION.md`). |
 
-### D — Denial of Service
+### D - Denial of Service
 
 | Threat | AgentWall Response |
 |---|---|
@@ -74,7 +74,7 @@ AgentWall's primary adversary is a **compromised AI agent** — an autonomous ag
 | Agent sends massive payloads to fill audit log | **Partially Mitigated**: DuckDB handles large datasets efficiently. Payload size limits enforced at the proxy layer. |
 | Proxy itself crashes, blocking agent workflow | **Mitigated**: Failsafe mode (`failsafe.py`) detects proxy failure and can be configured to either fail-open (permit all) or fail-closed (block all). |
 
-### E — Elevation of Privilege
+### E - Elevation of Privilege
 
 | Threat | AgentWall Response |
 |---|---|
@@ -102,10 +102,10 @@ The following threats are **outside AgentWall's current threat model**. Honest d
 
 | Property | Status | Mechanism |
 |---|---|---|
-| Audit Log Integrity | ✅ Guaranteed | HMAC-SHA256 chain |
-| Attribution Non-Repudiation | ✅ Guaranteed (logged) | OS process + timestamp |
-| Policy Enforcement | ✅ Enforced at boundary | Compiled YAML rules |
-| Secret Exfiltration Detection | ✅ High confidence | Honeytoken 0% FPR |
-| Multi-Agent Privilege Separation | ✅ Enforced | Trust Graph + RBAC |
-| Proxy Bypass Detection | ❌ Not supported | Requires OS firewall |
-| LLM Response Inspection | ⚠️ Partial | Layer 3 semantic engine |
+| Audit Log Integrity |  Guaranteed | HMAC-SHA256 chain |
+| Attribution Non-Repudiation |  Guaranteed (logged) | OS process + timestamp |
+| Policy Enforcement |  Enforced at boundary | Compiled YAML rules |
+| Secret Exfiltration Detection |  High confidence | Honeytoken 0% FPR |
+| Multi-Agent Privilege Separation |  Enforced | Trust Graph + RBAC |
+| Proxy Bypass Detection |  Not supported | Requires OS firewall |
+| LLM Response Inspection |  Partial | Layer 3 semantic engine |

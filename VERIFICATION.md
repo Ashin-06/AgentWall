@@ -1,4 +1,4 @@
-# ✅ Verification Guide
+#  Verification Guide
 
 Use these step-by-step proofs to verify that AgentWall is correctly protecting your environment.
 

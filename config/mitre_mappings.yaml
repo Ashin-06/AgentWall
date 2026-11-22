@@ -31,7 +31,7 @@ techniques:
   T1565.001:
     name: "Stored Data Manipulation"
     tactic: "Impact"
-    description: "Modification of data at rest — includes RAG/memory poisoning"
+    description: "Modification of data at rest - includes RAG/memory poisoning"
     agentwall_note: "Memory and vector store poisoning attacks"
 
   T1485:
@@ -81,4 +81,4 @@ techniques:
     name: "Acquire Infrastructure"
     tactic: "Resource Development"
     description: "Attacker acquires infrastructure to support operations"
-    agentwall_note: "Multi-session campaign — attacker controls external infra"
+    agentwall_note: "Multi-session campaign - attacker controls external infra"

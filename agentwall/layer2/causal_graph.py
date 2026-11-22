@@ -1,9 +1,9 @@
 """
-Causal Attack Graph Detector — the most novel component in AgentWall.
+Causal Attack Graph Detector - the most novel component in AgentWall.
 
 Concept:
   Individual tool calls look innocent. Attacks are sequences.
-  Classic example: read_config → http_get → write_file → send_email
+  Classic example: read_config -> http_get -> write_file -> send_email
   = read secrets, exfiltrate via HTTP, persist, notify attacker.
 
 Implementation:
@@ -21,7 +21,7 @@ from typing import Any
 
 import networkx as nx
 
-# ─── Known attack patterns ────────────────────────────────────────────────────
+# --- Known attack patterns ----------------------------------------------------
 # Each pattern is a list of (tool_category, tool_category) edges
 # Tool categories: READ, WRITE, EXEC, NET, MEM, EMAIL, DB
 
@@ -108,7 +108,7 @@ class CausalGraphDetector:
     def __init__(self):
         # {session_id: DiGraph}
         self._graphs: dict[str, nx.DiGraph] = defaultdict(nx.DiGraph)
-        self._last_call: dict[str, tuple] = {}  # session_id → (tool_category, ts)
+        self._last_call: dict[str, tuple] = {}  # session_id -> (tool_category, ts)
         self._load_from_db()
 
     def _load_from_db(self):

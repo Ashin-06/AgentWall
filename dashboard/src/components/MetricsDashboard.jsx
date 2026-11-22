@@ -114,7 +114,7 @@ export default function MetricsDashboard({ token, onUnauthorized }) {
         </div>
         <div style={s.controls}>
           <div style={{...s.wsIndicator, background: wsStatus==="live" ? "#0d2e18" : "#1a1207", color: wsStatus==="live" ? "#5dcaa5" : "#f0c875"}}>
-            {wsStatus === "live" ? "◉ SYSTEM_LIVE" : "◌ SYNCING..."}
+            {wsStatus === "live" ? "(o) SYSTEM_LIVE" : "o SYNCING..."}
             <div style={{...s.pulseDot, opacity: (pulse % 2 === 0) ? 1 : 0.3}} />
           </div>
           <button style={s.btn} onClick={() => setZoom(z => Math.min(10, z * 1.2))}>+</button>
@@ -130,13 +130,13 @@ export default function MetricsDashboard({ token, onUnauthorized }) {
       </div>
 
       <div className="metrics-grid" style={s.mainGrid}>
-        <Panel title="System Performance" sub="P95 Latency · Block Rate · DB Health">
+        <Panel title="System Performance" sub="P95 Latency - Block Rate - DB Health">
           <div style={s.sparkGroup}>
             <div style={s.sparkItem}><div style={s.sparkLabel}>P95 Latency (ms)</div><InteractiveSparkline data={history.latency_p95.slice(-Math.round(20/zoom))} color="#c084fc" label="p95" /></div>
             <div style={s.sparkItem}><div style={s.sparkLabel}>Block Rate %</div><InteractiveSparkline data={history.blockRate.slice(-Math.round(20/zoom))} color="#ef4444" label="block%" /></div>
           </div>
         </Panel>
-        <Panel title="Live Alert Feed" sub={`Active WebSocket Stream — ${liveAlerts.length} events`}>
+        <Panel title="Live Alert Feed" sub={`Active WebSocket Stream - ${liveAlerts.length} events`}>
           <div style={s.alertScroll}>
             {liveAlerts.length === 0 ? <div style={s.alertEmpty}>Monitoring live agent telemetry...</div> : liveAlerts.map((a, i) => (
               <div key={i} style={{...s.alertItem, borderLeft: `3px solid ${a.verdict==='BLOCK'?'#ef4444':'#5dcaa5'}`}}>
