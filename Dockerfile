@@ -1,5 +1,6 @@
 FROM node:22-slim AS dashboard
 WORKDIR /dashboard
+ENV CYPRESS_INSTALL_BINARY=0
 COPY dashboard/package*.json ./
 RUN npm ci
 COPY dashboard/ ./

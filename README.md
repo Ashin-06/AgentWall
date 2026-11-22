@@ -201,6 +201,10 @@ python evals/attribution_accuracy.py
 
 # Deterministic unit tests (mock ML layers, CI-safe)
 python -m pytest tests/ -v
+
+# Dashboard end-to-end tests (Cypress) against a running server on :8000
+# started with the same AGENTWALL_ADMIN_PASSWORD and AGENTWALL_API_KEYS
+cd dashboard && npm run build && npm run e2e
 ```
 
 ---
