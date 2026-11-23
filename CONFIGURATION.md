@@ -78,3 +78,16 @@ kept in Redis when `REDIS_URL` is set, otherwise in process memory (lost on rest
 - The live-alert WebSocket (`/ws/intercept`) expects `{"type": "auth", "token": "<jwt or api key>"}`
   as its first message within 5 seconds, so tokens never appear in URLs or access logs. With
   `AGENTWALL_AUTH_ENABLED=0` no auth message is needed.
+
+## Prompt-injection classifier (optional)
+
+```bash
+pip install -r requirements-classifier.txt
+python -m agentwall.layer3.classifier --download   # ~740 MB into $AGENTWALL_MODEL_DIR/prompt-injection-v2
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `AGENTWALL_CLASSIFIER` | model dir under `AGENTWALL_MODEL_DIR` | `off` disables it, or a path to the model directory |
+| `AGENTWALL_CLASSIFIER_THRESHOLD` | `0.5` | classifier probability treated as a block (tuned on the dev split) |
+| `AGENTWALL_LLM_SECOND_OPINION` | `1` | `0` skips the LLM and uses classifier + heuristics only (about 25 ms instead of 1-4 s) |

@@ -78,20 +78,30 @@ class LLMInjectionClassifier:
             else:
                 del self._cache[cache_key]
 
-        if self.use_llm:
-            res = await self._llm_classify(text, goal, f"{call.get('tool_name')}({str(call.get('arguments'))})")
-            if "error" not in res:
-                # Add to cache
-                if len(self._cache) >= self._cache_max:
-                    self._cache.popitem(last=False) # Remove oldest
-                self._cache[cache_key] = (res, now + self._cache_ttl)
-            return res
-
-        # Heuristic fallback
+        # Fast local checks first: the dedicated classifier (optional) and the heuristics.
+        # A confident hit skips the slower LLM; otherwise the LLM is a second opinion.
         from agentwall.layer1.normaliser import normalise_text
         from agentwall.layer3._heuristics import heuristic_score
-        score, matches = heuristic_score(normalise_text(text), goal=goal)
-        return {"score": score, "source": "heuristic_fallback", "matches": matches}
+        from agentwall.layer3.classifier import InjectionClassifier, BLOCK_SCORE, combine
+        clf = InjectionClassifier.instance()
+        c = await asyncio.to_thread(clf.score, text) if clf.available else None
+        h, matches = heuristic_score(normalise_text(text), goal=goal)
+        local = combine(c, h)
+        local_res = {"score": local, "classifier_score": c, "heuristic_score": h, "matches": matches,
+                     "source": "classifier" if c is not None and c >= h else "heuristic",
+                     "reasoning": f"Classifier {c}, heuristic {h}" + (f": {', '.join(matches[:2])}" if matches else "")}
+        if local >= BLOCK_SCORE or not self.use_llm or os.getenv("AGENTWALL_LLM_SECOND_OPINION", "1") == "0":
+            return local_res
+
+        res = await self._llm_classify(text, goal, f"{call.get('tool_name')}({str(call.get('arguments'))})")
+        if res.get("score", 0.0) < local:
+            res = {**res, **{k: v for k, v in local_res.items() if k != "source"}, "score": local}
+        res = {**res, "classifier_score": c, "heuristic_score": h}
+        if "error" not in res:
+            if len(self._cache) >= self._cache_max:
+                self._cache.popitem(last=False)  # Remove oldest
+            self._cache[cache_key] = (res, now + self._cache_ttl)
+        return res
 
     async def _llm_classify(self, text: str, goal: str = "", tool_call: str = "") -> dict:
         # Hard cap to keep latency low

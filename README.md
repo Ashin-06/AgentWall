@@ -48,17 +48,19 @@ These results are from **actual FastAPI server calls** using Python's `TestClien
 
 >  **Scope Limitation**: TPR/FPR apply to Layer 1 (deterministic YAML policy rules) only. The ML layers are mocked here and in the unit tests. Layer 3 (the LLM injection classifier) is evaluated separately against a real local model on a held-out split of public data; see [docs/EVALUATION.md](docs/EVALUATION.md) and the summary below. Layer 2 (Isolation Forest, RAG detector) has not been evaluated on real data.
 
-### Real-model results - Layer 3 injection classifier (`evals/ml_eval.py`)
+### Real-model results - Layer 3 injection detection (`evals/ml_eval.py`, `evals/classifier_eval.py`)
 
-Held-out test split of 366 rows (deepset/prompt-injections test, JailbreakBench behaviors, agent tool-call fixtures), block threshold 0.8, laptop RTX 3060 via Ollama:
+Held-out test split of 366 rows (deepset/prompt-injections test, JailbreakBench behaviors, agent tool-call fixtures). Thresholds were tuned on a separate dev split. CPU classifier; LLMs on a laptop RTX 3060 via Ollama.
 
-| Model | Precision | Recall | F1 | Recall on deepset injections | p50 latency |
+| Layer 3 configuration | Precision | Recall | F1 | Recall on real prompt injections (deepset) | p50 latency |
 |---|---|---|---|---|---|
-| llama3.2:3b | 0.898 | 0.524 | 0.662 | 0.067 | 1.2 s |
-| llama3.1 8B (default) | 0.922 | 0.643 | 0.758 | 0.217 | 3.6 s |
-| heuristic fallback (no model) | 0.812 | 0.070 | 0.129 | 0.033 | < 1 ms |
+| LLM only, llama3.2:3b (previous) | 0.898 | 0.524 | 0.662 | 0.067 | 1.2 s |
+| LLM only, llama3.1 8B (previous) | 0.922 | 0.643 | 0.758 | 0.217 | 3.6 s |
+| Classifier + heuristics, no LLM | 0.898 | 0.238 | 0.376 | 0.483 | 24 ms |
+| Classifier + heuristics + llama3.2:3b | 0.887 | 0.676 | 0.767 | 0.500 | 1.2 s |
+| Classifier + heuristics + llama3.1 8B | 0.908 | 0.751 | 0.822 | 0.550 | 3.6 s |
 
-Most real prompt injections get past the LLM layer. Its recall comes mainly from harmful requests and from tool calls that Layer 1 already blocks.
+The dedicated classifier (optional, ONNX on CPU) and the new heuristics raise real-injection recall from 7-22% to 48-55%, at the cost of a few more false positives on benign requests. About half of real injections still get through, mostly German-language and indirect ones. Details: [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ---
 
@@ -143,7 +145,7 @@ AI Agent (Copilot / Cursor / Aider)
 | Natural Attribution Engine | `psutil` + `watchdog` |  Implemented; algorithm validated via simulation |
 | Audit Log | DuckDB + HMAC-SHA256 |  Implemented & tested |
 | Anomaly Detection | Isolation Forest (scikit-learn) |  Implemented; requires traffic data to train |
-| Semantic Injection Classifier | LLM via Ollama |  Implemented; evaluated with a real model in [docs/EVALUATION.md](docs/EVALUATION.md) (low recall on prompt injection) |
+| Semantic Injection Classifier | LLM via Ollama |  Implemented: optional ONNX classifier + heuristics + LLM second opinion; about 50% recall on real prompt injections ([docs/EVALUATION.md](docs/EVALUATION.md)) |
 | SOC Dashboard | React + WebSocket |  Built; served from `dashboard/dist/` |
 | Redis Scaling | Optional (`redis-py`) |  Graceful fallback to local memory if absent |
 
@@ -158,7 +160,7 @@ Full STRIDE threat model in [THREAT_MODEL.md](THREAT_MODEL.md).
 | **Not a network firewall** | Agents must explicitly set `base_url`. Agents that hardcode `api.openai.com` will bypass monitoring entirely. |
 | **Proxy-aware bypass** | A sophisticated agent detecting it is being proxied could route directly to the LLM API. Mitigation requires OS-level iptables/eBPF (out of scope). |
 | **Heuristic attribution** | The NAE uses CPU% as a proxy for "recently active" because `psutil` does not provide windowed CPU history without polling. In a high-concurrency environment with many processes, false attribution is possible - handled by the `contested` flag. |
-| **ML layers need a live LLM** | Layer 3 produces meaningful output only when a model is running; without one it falls back to a heuristic that catches 7% of attacks. With llama3.1 8B it catches 22% of real prompt injections (docs/EVALUATION.md). In CI the ML layers are mocked. |
+| **Prompt injection detection is partial** | Layer 3 catches about half of real prompt injections (deepset test: 48% with the CPU classifier and heuristics, 55% adding llama3.1 8B), and misses most German-language and indirect ones. Without the optional classifier and without a running LLM, only the heuristics remain (25%). In CI the ML layers are mocked. |
 | **Attribution not validated on real processes** | The MSA algorithm logic is validated via simulation. Real `psutil` scanning on a live OS with multiple agents has not been formally benchmarked yet. |
 | **Dashboard token in localStorage** | The dashboard keeps its JWT (1 hour by default) in `localStorage`, so script injected into the dashboard origin could read it. The dashboard renders no HTML from events and the API sets no cookies, which avoids CSRF; moving the token to an httpOnly cookie would need CSRF protection and has not been done. Keep `AGENTWALL_JWT_TTL` short. |
 

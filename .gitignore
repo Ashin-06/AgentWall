@@ -54,6 +54,7 @@ models/
 *.txt
 !README.md
 !requirements.txt
+!requirements-classifier.txt
 !LICENSE
 !dashboard/public/assets/logo.png
 
