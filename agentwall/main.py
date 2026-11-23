@@ -230,7 +230,7 @@ async def security_status(auth=Depends(require_auth)):
         "authentication_enabled": AUTH_ENABLED,
         "enforcement_mode": "observe" if app.state.proxy.enabled else "enforce",
         "policy_profile": app.state.proxy.proxy._variant,
-        "gateway_policy_enforced": False,
+        "gateway_policy_enforced": True,
     }
 
 @app.get("/metrics")
@@ -253,10 +253,11 @@ UPSTREAM_HOSTS = {
 @app.post("/v1/messages")
 @app.post("/v1/proxy/{target_host:path}")
 async def universal_gateway(request: Request, target_host: str = "api.openai.com", auth=Depends(require_auth)):
+    from agentwall import gateway
     body = await request.json()
     agent_id = request.headers.get("X-AgentWall-Agent", "browser_intercept")
     session_id = request.headers.get("X-AgentWall-Session", f"SESS_{int(time.time())}")
-    
+
     # Identify protocol. The upstream key is attached to the forwarded request, so the
     # /v1/proxy target host must be a known provider, never caller-chosen (SSRF / key leak).
     host = target_host.split("/", 1)[0].lower()
@@ -264,34 +265,59 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
         raise HTTPException(status_code=400, detail="Unsupported upstream host")
     protocol = UPSTREAM_HOSTS[host]
     if request.url.path == "/v1/messages": protocol = "anthropic"
+    if body.get("stream") or ":streamGenerateContent" in target_host:
+        raise HTTPException(status_code=400, detail="Streaming is not supported: responses could not be checked before the agent acts on them")
 
-    from agentwall.audit.write_queue import DBWriteQueue
-    await DBWriteQueue.get().write((
-        session_id, agent_id, f"gen_{int(time.time())}", f"{protocol}_call",
-        body, "AUDIT", f"Observed via {protocol.upper()} Gateway (policy not enforced)",
-        {"target": target_host}, "T1059", "gateway", 0, False, protocol
-    ))
+    # Request: tool calls in the conversation, then the message text as one synthetic call.
+    observe = app.state.proxy.observe
+    calls = gateway.request_tool_calls(protocol, body)
+    texts = gateway.request_text(protocol, body)
+    if texts:
+        calls.append(("llm_request", {"messages": texts}))
+    blocked = await gateway.check_calls(observe, session_id, agent_id, calls, f"gw_req_{int(time.time())}_")
+    if blocked:
+        return _gateway_block(blocked)
 
     api_key = os.getenv("AGENTWALL_UPSTREAM_KEY")
     if not api_key:
         return JSONResponse(status_code=200, content={"message": "AgentWall: Dev Mode Active. No upstream key set."})
 
+    if protocol == "openai":
+        url = os.getenv("AGENTWALL_UPSTREAM_URL", "https://api.openai.com/v1/chat/completions")
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif protocol == "anthropic":
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {"x-api-key": api_key,
+                   "anthropic-version": request.headers.get("anthropic-version", "2023-06-01")}
+    else:
+        url = f"https://{target_host}"
+        headers = {"x-goog-api-key": api_key}
+
+    status, data = await _forward(url, body, headers)
+    if status >= 400 or not isinstance(data, dict):
+        return JSONResponse(status_code=status, content=data)
+
+    # Response: tool calls the model wants executed, then sanitise the text it returns.
+    blocked = await gateway.check_calls(observe, session_id, agent_id,
+                                        gateway.response_tool_calls(protocol, data), f"gw_resp_{int(time.time())}_")
+    if blocked:
+        return _gateway_block(blocked)
+    gateway.sanitise_response(protocol, data, app.state.proxy.proxy.sanitiser.clean)
+    return JSONResponse(status_code=status, content=data)
+
+
+async def _forward(url: str, body: dict, headers: dict):
     import httpx
     async with httpx.AsyncClient() as client:
-        # Determine upstream URL
-        if protocol == "openai":
-            url = os.getenv("AGENTWALL_UPSTREAM_URL", "https://api.openai.com/v1/chat/completions")
-            headers = {"Authorization": f"Bearer {api_key}"}
-        elif protocol == "anthropic":
-            url = "https://api.anthropic.com/v1/messages"
-            headers = {"x-api-key": api_key,
-                       "anthropic-version": request.headers.get("anthropic-version", "2023-06-01")}
-        else:
-            url = f"https://{target_host}"
-            headers = {"x-goog-api-key": api_key}
-
         resp = await client.post(url, json=body, headers=headers, timeout=60.0)
-        return JSONResponse(status_code=resp.status_code, content=resp.json() if "json" in resp.headers.get("content-type", "") else resp.text)
+    is_json = "json" in resp.headers.get("content-type", "")
+    return resp.status_code, resp.json() if is_json else resp.text
+
+
+def _gateway_block(event: dict):
+    return JSONResponse(status_code=403, content={"error": {
+        "type": "agentwall_blocked", "message": event["reason"], "tool": event["tool_name"],
+        "event_id": event["event_id"], "mitre_id": event.get("mitre_id")}})
 
 # Transparent Proxy Handler (DISABLED to restore VS Code connectivity)
 # @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])

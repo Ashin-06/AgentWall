@@ -49,7 +49,9 @@ To monitor LLM "Thoughts" (API requests), AgentWall provides a protocol-agnostic
 
 - **Unified Interface**: Supports OpenAI (`/v1/chat/completions`), Anthropic (`/v1/messages`), and Google Gemini API formats via protocol normalization.
 - **Transparent Interception**: Agents point their `base_url` to AgentWall (`http://localhost:8000/v1`).
-- **Layered Pipeline**: Every intercepted call passes through a 4-layer inspection pipeline before forwarding.
+- **Request checks**: each tool call already in the conversation, and the message text as one synthetic `llm_request` call, go through the full pipeline (normalisation, Layer 1 policy and RBAC, PII masking in the audit log, Layers 2-3). Any BLOCK returns 403 and nothing is forwarded.
+- **Response checks**: each tool call the model returns goes through the same pipeline; a BLOCK replaces the response with a 403 so the agent never executes it. Response text passes through the output sanitiser.
+- **Not covered**: streaming requests are rejected (a stream could not be checked before the agent acts on it); images and other non-text parts are not inspected; PII is masked in the audit log but not removed from what is sent to the provider. Implementation: `agentwall/gateway.py`.
 
 ---
 
