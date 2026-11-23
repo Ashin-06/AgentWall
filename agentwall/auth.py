@@ -40,6 +40,12 @@ AUTH_ENABLED = os.getenv("AGENTWALL_AUTH_ENABLED", "1") == "1"
 _bearer = HTTPBearer(auto_error=False)
 
 
+def valid_api_key(key: str) -> bool:
+    """Constant-time comparison against every configured key."""
+    import hmac
+    return bool(key) and any(hmac.compare_digest(key.encode(), k.encode()) for k in API_KEYS)
+
+
 def validate_production_config():
     """Fail startup before serving traffic with known development credentials."""
     if os.getenv("AGENTWALL_ENV") != "production":
@@ -89,7 +95,7 @@ def require_auth_token(token: str) -> dict:
     if payload:
         return payload
     # Check if it's a valid API key (fallback for some integrations)
-    if token in API_KEYS:
+    if valid_api_key(token):
         return {"sub": "api_key", "key_prefix": token[:8]}
     raise HTTPException(status_code=401, detail="Invalid or expired token")
 
@@ -105,7 +111,7 @@ async def require_auth(
     # Method 1: API key in header
     api_key = request.headers.get("X-AgentWall-Key")
     if api_key:
-        if api_key in API_KEYS:
+        if valid_api_key(api_key):
             return {"sub": "api_key", "key_prefix": api_key[:8]}
         raise HTTPException(status_code=401, detail="Invalid API key")
 
@@ -114,6 +120,8 @@ async def require_auth(
         payload = verify_jwt(credentials.credentials)
         if payload:
             return payload
+        if valid_api_key(credentials.credentials):  # e.g. Prometheus bearer credentials
+            return {"sub": "api_key", "key_prefix": credentials.credentials[:8]}
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     raise HTTPException(

@@ -52,8 +52,6 @@ class AgentWallProxy:
         self._shadow_mode_active = os.getenv("AGENTWALL_SHADOW_MODE", "0") == "1"
         self._system_lockdown_active = False
         self._lockdown_reason = ""
-        self._total_calls_seen = 0
-        self.auto_baseline_calls = int(os.getenv("AGENTWALL_AUTO_BASELINE_N", "50"))
         self.ws          = ws_manager
         self._local_locked_sessions = set()
 
@@ -352,12 +350,6 @@ class AgentWallProxy:
         if l1_res["action"] == AUDIT or anomaly_score > 0.25 or injection_score > 0.25:
             verdict = AUDIT
 
-        # Auto-Baseline Enforcement (90% Readiness Fix)
-        self._total_calls_seen += 1
-        if self._total_calls_seen < self.auto_baseline_calls and verdict == BLOCK:
-            reason = f"[AUTO-BASELINE] Would have BLOCKED: {reason}"
-            verdict = AUDIT
-
         # HITL: a high-risk tool is held until an admin approves this exact call (single use).
         approval = raw_payload.get("approval_token")
         if approval and self.hitl.consume(approval, call):
@@ -377,7 +369,7 @@ class AgentWallProxy:
                 "alignment": alignment,
                 "sandbox_suggested": use_sandbox,
                 "hitl": hitl_res,
-                "baseline_mode": self._total_calls_seen < self.auto_baseline_calls
+                "injection": injection_res,  # campaign correlation reads this score
             },
             None, t_start
         )
@@ -385,16 +377,35 @@ class AgentWallProxy:
     async def _run_semantic_guard(self, call: dict) -> dict:
         """Core semantic evaluation with circuit breaker protection."""
         # Half-open after 30 s, otherwise one failure would disable this layer for good.
-        if self._injection_failure_rate > 0.15 and time.time() - self._injection_failed_at < 30:
-            return {"score": 0.5, "reasoning": "Fallback: Circuit breaker open"}
+        # While open, skip the model (and its 7 s timeout) and use the heuristic directly.
+        if self.breaker_open:
+            return self._heuristic_guard(call)
         try:
             res = await self.injection.analyse(call)
-            self._injection_failure_rate = 0.0 if self._injection_failure_rate > 0.15 else self._injection_failure_rate * 0.85
-            return {**res, "reasoning": res.get("reasoning") or ", ".join(res.get("matches", [])) or "Semantic analysis"}
         except Exception as e:
-            self._injection_failure_rate = min(1.0, self._injection_failure_rate + 0.2)
-            self._injection_failed_at = time.time()
+            self._record_semantic_failure()
             return {"score": 0.6, "reasoning": f"Fallback: Semantic engine failure ({e})"}
+        if res.get("error"):
+            # The classifier already fell back to the heuristic; the model itself failed.
+            self._record_semantic_failure()
+        else:
+            self._injection_failure_rate = 0.0 if self._injection_failure_rate > 0.15 else self._injection_failure_rate * 0.85
+        return {**res, "reasoning": res.get("reasoning") or ", ".join(res.get("matches", [])) or "Semantic analysis"}
+
+    @property
+    def breaker_open(self) -> bool:
+        return self._injection_failure_rate > 0.15 and time.time() - self._injection_failed_at < 30
+
+    def _record_semantic_failure(self):
+        self._injection_failure_rate = min(1.0, self._injection_failure_rate + 0.2)
+        self._injection_failed_at = time.time()
+
+    def _heuristic_guard(self, call: dict) -> dict:
+        from agentwall.layer1.normaliser import normalise_text
+        from agentwall.layer3._heuristics import heuristic_score
+        score, matches = heuristic_score(normalise_text(self.injection._collect_text(call)))
+        return {"score": score, "matches": matches, "source": "heuristic_breaker_open",
+                "reasoning": "Circuit breaker open: " + (", ".join(matches[:2]) or "no heuristic match")}
 
     async def _run_semantic_guard_shadow(self, call: dict):
         """Asynchronous post-hoc evaluation for low-risk calls."""

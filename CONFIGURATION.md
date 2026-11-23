@@ -70,3 +70,11 @@ substrings of the tool name) that pass every other layer are held: the verdict i
 The token only unlocks the exact call it was issued for (same session, agent, tool and
 arguments), works once, and expires after `AGENTWALL_HITL_TTL` seconds (default 3600). Tokens are
 kept in Redis when `REDIS_URL` is set, otherwise in process memory (lost on restart).
+## Metrics and live alerts
+
+- `/metrics` (Prometheus) requires auth like the rest of the API: send one of `AGENTWALL_API_KEYS`
+  as `Authorization: Bearer <key>` or `X-AgentWall-Key`. `config/prometheus.yml` reads it from a
+  credentials file.
+- The live-alert WebSocket (`/ws/intercept`) expects `{"type": "auth", "token": "<jwt or api key>"}`
+  as its first message within 5 seconds, so tokens never appear in URLs or access logs. With
+  `AGENTWALL_AUTH_ENABLED=0` no auth message is needed.

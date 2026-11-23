@@ -90,7 +90,7 @@ def test_security_status_reports_actual_mode(client):
     assert response.status_code == 200
     expected = "observe" if client.app.state.proxy.enabled else "enforce"
     assert response.json()["enforcement_mode"] == expected
-    assert response.json()["gateway_policy_enforced"] is False
+    assert response.json()["gateway_policy_enforced"] is True
 
 
 def test_output_sanitization_removes_instructions(client):

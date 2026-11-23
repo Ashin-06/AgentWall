@@ -12,9 +12,12 @@ export function createWSClient(url, { onOpen, onClose, onMessage, token }) {
       console.warn("[WS] Aborting connection: No security token provided.");
       return;
     }
-    const finalUrl = `${url}?token=${encodeURIComponent(token)}`;
-    ws = new WebSocket(finalUrl);
-    ws.onopen    = () => { if (!closed) onOpen?.(); };
+    // The token is sent as the first message so it never appears in URLs or access logs.
+    ws = new WebSocket(url);
+    ws.onopen    = () => {
+      ws.send(JSON.stringify({ type: "auth", token }));
+      if (!closed) onOpen?.();
+    };
     ws.onclose   = () => {
       if (!closed) onClose?.();
       if (!closed) {

@@ -116,18 +116,19 @@ final_static_path = dashboard_dist if os.path.exists(dashboard_dist) else os.pat
 print(f"[Dashboard] Serving from: {final_static_path}")
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
-if not os.path.exists(final_static_path):
-    os.makedirs(final_static_path, exist_ok=True)
-    with open(os.path.join(final_static_path, "index.html"), "w") as f:
-        f.write("<html><body><h1>AgentWall Dashboard</h1></body></html>")
 
-app.mount("/assets", StaticFiles(directory=os.path.join(final_static_path, "assets") if os.path.exists(os.path.join(final_static_path, "assets")) else final_static_path), name="assets")
+_assets = os.path.join(final_static_path, "assets")
+if os.path.isdir(_assets):
+    app.mount("/assets", StaticFiles(directory=_assets), name="assets")
 
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(final_static_path, "index.html"))
+    index = os.path.join(final_static_path, "index.html")
+    if not os.path.exists(index):
+        return HTMLResponse("<html><body><h1>AgentWall</h1><p>Dashboard build not found.</p></body></html>")
+    return FileResponse(index)
 
 @app.get("/health")
 async def health():
@@ -136,21 +137,27 @@ async def health():
 active_connections = set()
 
 @app.websocket("/ws/intercept")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    from agentwall.auth import verify_jwt
-    payload = verify_jwt(token)
-    if payload:
-        await websocket.accept()
-        active_connections.add(websocket)
+async def websocket_endpoint(websocket: WebSocket):
+    """Clients send {"type": "auth", "token": "<jwt or api key>"} first; tokens stay out of URLs and logs."""
+    import agentwall.auth as auth_config
+    await websocket.accept()
+    if auth_config.AUTH_ENABLED:
         try:
-            while True:
-                await websocket.receive_text()
-        except WebSocketDisconnect:
-            active_connections.remove(websocket)
-    else:
-        print(f"[WS] Auth Failed: Invalid token")
-        try: await websocket.close(code=4003)
-        except: pass
+            msg = json.loads(await asyncio.wait_for(websocket.receive_text(), timeout=5))
+            if msg.get("type") != "auth":
+                raise ValueError("first message must be auth")
+            auth_config.require_auth_token(str(msg.get("token", "")))  # raises on a bad token
+        except Exception:
+            await websocket.close(code=4003)
+            return
+    active_connections.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        active_connections.discard(websocket)
 
 ADMIN_PASSWORD = os.getenv("AGENTWALL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
 if not os.getenv("AGENTWALL_ADMIN_PASSWORD"):
@@ -163,13 +170,14 @@ async def login(req: LoginRequest, request: Request):
     # ponytail: in-process per-IP limit; use a shared store if running several replicas
     ip = request.client.host if request.client else "unknown"
     now = time.time()
-    recent = [t for t in login_attempts[ip] if now - t < 60]
-    login_attempts[ip] = recent
+    for other in [k for k, v in login_attempts.items() if not v or now - v[-1] >= 60]:
+        del login_attempts[other]  # ponytail: O(ips) per login; fine for an admin-only endpoint
+    recent = [t for t in login_attempts.get(ip, []) if now - t < 60]
     if len(recent) >= LOGIN_MAX_FAILURES:
         raise HTTPException(status_code=429, detail="Too many failed logins; try again later")
     if hmac.compare_digest(req.password.encode(), ADMIN_PASSWORD.encode()):
         return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": JWT_TTL}
-    recent.append(now)
+    login_attempts[ip] = recent + [now]
     raise HTTPException(status_code=401, detail="Invalid password")
 
 @app.post("/intercept")
@@ -263,11 +271,11 @@ async def security_status(auth=Depends(require_auth)):
         "authentication_enabled": AUTH_ENABLED,
         "enforcement_mode": "observe" if app.state.proxy.enabled else "enforce",
         "policy_profile": app.state.proxy.proxy._variant,
-        "gateway_policy_enforced": False,
+        "gateway_policy_enforced": True,
     }
 
 @app.get("/metrics")
-async def metrics():
+async def metrics(auth=Depends(require_auth)):
     return PlainTextResponse(MetricsRegistry.get().export())
 
 @app.get("/api/performance")
@@ -286,10 +294,11 @@ UPSTREAM_HOSTS = {
 @app.post("/v1/messages")
 @app.post("/v1/proxy/{target_host:path}")
 async def universal_gateway(request: Request, target_host: str = "api.openai.com", auth=Depends(require_auth)):
+    from agentwall import gateway
     body = await request.json()
     agent_id = request.headers.get("X-AgentWall-Agent", "browser_intercept")
     session_id = request.headers.get("X-AgentWall-Session", f"SESS_{int(time.time())}")
-    
+
     # Identify protocol. The upstream key is attached to the forwarded request, so the
     # /v1/proxy target host must be a known provider, never caller-chosen (SSRF / key leak).
     host = target_host.split("/", 1)[0].lower()
@@ -297,34 +306,59 @@ async def universal_gateway(request: Request, target_host: str = "api.openai.com
         raise HTTPException(status_code=400, detail="Unsupported upstream host")
     protocol = UPSTREAM_HOSTS[host]
     if request.url.path == "/v1/messages": protocol = "anthropic"
+    if body.get("stream") or ":streamGenerateContent" in target_host:
+        raise HTTPException(status_code=400, detail="Streaming is not supported: responses could not be checked before the agent acts on them")
 
-    from agentwall.audit.write_queue import DBWriteQueue
-    await DBWriteQueue.get().write((
-        session_id, agent_id, f"gen_{int(time.time())}", f"{protocol}_call",
-        body, "AUDIT", f"Observed via {protocol.upper()} Gateway (policy not enforced)",
-        {"target": target_host}, "T1059", "gateway", 0, False, protocol
-    ))
+    # Request: tool calls in the conversation, then the message text as one synthetic call.
+    observe = app.state.proxy.observe
+    calls = gateway.request_tool_calls(protocol, body)
+    texts = gateway.request_text(protocol, body)
+    if texts:
+        calls.append(("llm_request", {"messages": texts}))
+    blocked = await gateway.check_calls(observe, session_id, agent_id, calls, f"gw_req_{int(time.time())}_")
+    if blocked:
+        return _gateway_block(blocked)
 
     api_key = os.getenv("AGENTWALL_UPSTREAM_KEY")
     if not api_key:
         return JSONResponse(status_code=200, content={"message": "AgentWall: Dev Mode Active. No upstream key set."})
 
+    if protocol == "openai":
+        url = os.getenv("AGENTWALL_UPSTREAM_URL", "https://api.openai.com/v1/chat/completions")
+        headers = {"Authorization": f"Bearer {api_key}"}
+    elif protocol == "anthropic":
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {"x-api-key": api_key,
+                   "anthropic-version": request.headers.get("anthropic-version", "2023-06-01")}
+    else:
+        url = f"https://{target_host}"
+        headers = {"x-goog-api-key": api_key}
+
+    status, data = await _forward(url, body, headers)
+    if status >= 400 or not isinstance(data, dict):
+        return JSONResponse(status_code=status, content=data)
+
+    # Response: tool calls the model wants executed, then sanitise the text it returns.
+    blocked = await gateway.check_calls(observe, session_id, agent_id,
+                                        gateway.response_tool_calls(protocol, data), f"gw_resp_{int(time.time())}_")
+    if blocked:
+        return _gateway_block(blocked)
+    gateway.sanitise_response(protocol, data, app.state.proxy.proxy.sanitiser.clean)
+    return JSONResponse(status_code=status, content=data)
+
+
+async def _forward(url: str, body: dict, headers: dict):
     import httpx
     async with httpx.AsyncClient() as client:
-        # Determine upstream URL
-        if protocol == "openai":
-            url = os.getenv("AGENTWALL_UPSTREAM_URL", "https://api.openai.com/v1/chat/completions")
-            headers = {"Authorization": f"Bearer {api_key}"}
-        elif protocol == "anthropic":
-            url = "https://api.anthropic.com/v1/messages"
-            headers = {"x-api-key": api_key,
-                       "anthropic-version": request.headers.get("anthropic-version", "2023-06-01")}
-        else:
-            url = f"https://{target_host}"
-            headers = {"x-goog-api-key": api_key}
-
         resp = await client.post(url, json=body, headers=headers, timeout=60.0)
-        return JSONResponse(status_code=resp.status_code, content=resp.json() if "json" in resp.headers.get("content-type", "") else resp.text)
+    is_json = "json" in resp.headers.get("content-type", "")
+    return resp.status_code, resp.json() if is_json else resp.text
+
+
+def _gateway_block(event: dict):
+    return JSONResponse(status_code=403, content={"error": {
+        "type": "agentwall_blocked", "message": event["reason"], "tool": event["tool_name"],
+        "event_id": event["event_id"], "mitre_id": event.get("mitre_id")}})
 
 # Transparent Proxy Handler (DISABLED to restore VS Code connectivity)
 # @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
