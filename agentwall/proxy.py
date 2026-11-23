@@ -403,7 +403,11 @@ class AgentWallProxy:
     def _heuristic_guard(self, call: dict) -> dict:
         from agentwall.layer1.normaliser import normalise_text
         from agentwall.layer3._heuristics import heuristic_score
-        score, matches = heuristic_score(normalise_text(self.injection._collect_text(call)))
+        from agentwall.layer3.classifier import InjectionClassifier, combine
+        text = self.injection._collect_text(call)
+        score, matches = heuristic_score(normalise_text(text))
+        clf = InjectionClassifier.instance()
+        score = combine(clf.score(text) if clf.available else None, score)
         return {"score": score, "matches": matches, "source": "heuristic_breaker_open",
                 "reasoning": "Circuit breaker open: " + (", ".join(matches[:2]) or "no heuristic match")}
 

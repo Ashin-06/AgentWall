@@ -1,0 +1,4 @@
+# Optional: the dedicated prompt-injection classifier (agentwall/layer3/classifier.py).
+# Then fetch the model: python -m agentwall.layer3.classifier --download
+onnxruntime>=1.20,<2
+tokenizers>=0.20,<1

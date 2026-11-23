@@ -23,6 +23,15 @@ INJECTION_PATTERNS = [
     (r"(?i)<img\s+src=['\"]https?://.*?[\?&](?:data|leak|exfil|val|id|key)=", 0.3),
     (r"(?i)background-image:\s*url\(.*?[\?&](?:data|leak|exfil|val|id|key)=", 0.3),
     (r"(?i)window\.location\s*=", 0.3),
+    # Context resets and role-play setups, English and German (added from dev-split misses,
+    # docs/EVALUATION.md).
+    (r"\b(forget|vergiss|vergessen\s+sie|ignoriere|disregard)\b.{0,30}\b(everything|alles|all|previous|vorherigen?|bisherigen?|davor|before|above)\b", 0.9),
+    (r"\blassen\s+sie\s+alle\s+(vorherigen|bisherigen)\b", 0.9),
+    (r"\b(i\s+want\s+you\s+to\s+)?act\s+as\s+(a|an|my|the)\b", 0.8),
+    (r"\b(now|from\s+now\s+on|jetzt|nun|ab\s+jetzt)\s+(you\s+are|bist\s+du)\b", 0.9),
+    (r"\b(imagine|pretend)\s+(that\s+)?(you\s+are|you're|to\s+be)\b", 0.8),
+    (r"\b(stell\s+dir\s+vor|tu\s+so,?\s+als)\b", 0.8),
+    (r"\b(now|nun|jetzt)\b.{0,40}\b(new|neue|weitere|another)\s+(task|challenge|aufgabe\w*)\b", 0.8),
 ]
 
 _compiled = [(re.compile(p, re.IGNORECASE | re.DOTALL), w) for p, w in INJECTION_PATTERNS]
