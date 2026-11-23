@@ -350,10 +350,16 @@ class AgentWallProxy:
         if l1_res["action"] == AUDIT or anomaly_score > 0.25 or injection_score > 0.25:
             verdict = AUDIT
 
-        # HITL Check: High-risk tools + AUDIT verdict = HITL Required
-        hitl_res = {"requires_hitl": False}
-        if verdict == AUDIT:
+        # HITL: a high-risk tool is held until an admin approves this exact call (single use).
+        approval = raw_payload.get("approval_token")
+        if approval and self.hitl.consume(approval, call):
+            hitl_res = {"requires_hitl": False, "approved": True}
+            reason = "Permitted after human approval."
+        else:
             hitl_res = self.hitl.check_hitl_required(call)
+            if hitl_res["requires_hitl"]:
+                verdict = BLOCK
+                reason = f"Awaiting human approval: resend with X-AgentWall-Approval-Token once approved ({hitl_res['token']})"
 
         return await self._finalise(
             call, verdict, reason,
