@@ -26,7 +26,8 @@ test("closing a socket prevents reconnection and late callbacks", t => {
   let socket;
   class FakeSocket {
     static OPEN = 1;
-    constructor(url) { this.url = url; socket = this; }
+    constructor(url) { this.url = url; this.sent = []; socket = this; }
+    send(data) { this.sent.push(data); }
     close() { this.onclose(); }
   }
   t.mock.method(globalThis, "setTimeout", () => { throw new Error("Unexpected reconnect"); });
@@ -35,7 +36,9 @@ test("closing a socket prevents reconnection and late callbacks", t => {
   t.after(() => { globalThis.WebSocket = previous; });
   const messages = [];
   const client = createWSClient("ws://localhost/ws", { token: "a&b", onMessage: msg => messages.push(msg), onClose: () => { throw new Error("Late close callback"); } });
-  assert.equal(socket.url, "ws://localhost/ws?token=a%26b");
+  assert.equal(socket.url, "ws://localhost/ws");
+  socket.onopen();
+  assert.deepEqual(JSON.parse(socket.sent[0]), { type: "auth", token: "a&b" });
   socket.onmessage({ data: '{"type":"alert","event":{"event_id":"1"}}' });
   assert.equal(messages[0].event.event_id, "1");
   client.close();

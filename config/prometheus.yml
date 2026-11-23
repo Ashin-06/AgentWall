@@ -7,4 +7,8 @@ scrape_configs:
     static_configs:
       - targets: ["agentwall:8000"]
     metrics_path: "/metrics"
+    # /metrics requires auth: put one of AGENTWALL_API_KEYS in this file.
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/agentwall_api_key
     scrape_timeout: 10s
