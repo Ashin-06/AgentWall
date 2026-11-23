@@ -160,6 +160,7 @@ Full STRIDE threat model in [THREAT_MODEL.md](THREAT_MODEL.md).
 | **Heuristic attribution** | The NAE uses CPU% as a proxy for "recently active" because `psutil` does not provide windowed CPU history without polling. In a high-concurrency environment with many processes, false attribution is possible - handled by the `contested` flag. |
 | **ML layers need a live LLM** | Layer 3 produces meaningful output only when a model is running; without one it falls back to a heuristic that catches 7% of attacks. With llama3.1 8B it catches 22% of real prompt injections (docs/EVALUATION.md). In CI the ML layers are mocked. |
 | **Attribution not validated on real processes** | The MSA algorithm logic is validated via simulation. Real `psutil` scanning on a live OS with multiple agents has not been formally benchmarked yet. |
+| **Dashboard token in localStorage** | The dashboard keeps its JWT (1 hour by default) in `localStorage`, so script injected into the dashboard origin could read it. The dashboard renders no HTML from events and the API sets no cookies, which avoids CSRF; moving the token to an httpOnly cookie would need CSRF protection and has not been done. Keep `AGENTWALL_JWT_TTL` short. |
 
 ---
 
@@ -189,6 +190,16 @@ cp .env.example .env  # edit as needed
 ```bash
 python -m uvicorn agentwall.main:app --host 127.0.0.1 --port 8000 --ws websockets
 ```
+
+### Run with Docker Compose
+
+Put strong values for `AGENTWALL_ADMIN_PASSWORD`, `AGENTWALL_API_KEYS`, `AGENTWALL_JWT_SECRET` and `AGENTWALL_HMAC_KEY` in `.env` (for example `python -c "import secrets; print(secrets.token_hex(32))"`), then:
+
+```bash
+docker compose up --build -d
+```
+
+Compose refuses to start without those four values. The container runs as a non-root user; the audit database and models live in the `agentwall-data` volume at `/data`. Upgrading from a version that bind-mounted `./agentwall_v2.duckdb`: copy that file into the volume as `/data/db/agentwall.duckdb` before starting.
 
 ### Point Your Agent at AgentWall
 

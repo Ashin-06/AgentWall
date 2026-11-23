@@ -85,6 +85,7 @@ class CampaignDetector:
         # Store attempt in a rolling window set
         self._r.zadd("attempts_stream", {json.dumps(attempt): attempt["ts"]})
         self._r.zremrangebyscore("attempts_stream", 0, time.time() - 86400) # 24h window
+        self._r.expire("attempts_stream", 86400)  # also drop the key if traffic stops
 
         # Find matching campaign
         campaign_keys = self._r.keys("campaign:CAMP-*")

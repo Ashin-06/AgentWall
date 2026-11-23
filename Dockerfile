@@ -29,11 +29,14 @@ COPY config/    ./config/
 COPY --from=dashboard /dashboard/dist/ ./dashboard/dist/
 # COPY evals/     ./evals/ # Placeholder for future benchmark suite
 
-# Owned by the uid the Kubernetes Deployment runs as, so a fresh volume mounted at /data is writable.
-RUN mkdir -p /data/models /data/db && chown -R 10001:10001 /data
+# Runs as uid 10001 (the uid the Kubernetes Deployment uses). Only /data is writable.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin agentwall \
+ && mkdir -p /data/models /data/db && chown -R 10001:10001 /data
+USER 10001
 
 ENV AGENTWALL_DB=/data/db/agentwall.duckdb
 ENV AGENTWALL_MODEL_DIR=/data/models
+ENV AGENTWALL_SPILLOVER_LOG=/data/audit_spillover.log
 ENV AGENTWALL_POLICY=/app/config/policy.yaml
 
 EXPOSE 8000
