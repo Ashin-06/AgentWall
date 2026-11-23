@@ -183,8 +183,41 @@ async def intercept(request: Request, body: Dict[str, Any], auth=Depends(require
     except (KeyError, TypeError, ValueError, ValidationError):
         raise HTTPException(status_code=422, detail="Invalid tool-call payload")
     # Route through ShadowMode wrapper which handles the evaluation
-    res = await app.state.proxy.observe(call.model_dump())
+    payload = call.model_dump()
+    payload["approval_token"] = request.headers.get("X-AgentWall-Approval-Token")
+    res = await app.state.proxy.observe(payload)
     return res
+
+
+def require_admin(auth=Depends(require_auth)):
+    """HITL decisions need the dashboard (admin JWT); an agent's API key must not approve its own calls."""
+    import agentwall.auth as auth_config
+    if auth_config.AUTH_ENABLED and auth.get("sub") != "admin":
+        raise HTTPException(status_code=403, detail="Admin sign-in required")
+    return auth
+
+
+@app.get("/api/hitl/pending")
+async def hitl_pending(auth=Depends(require_admin)):
+    from agentwall.hitl.manager import HITLManager
+    return HITLManager.instance().pending()
+
+
+@app.post("/api/hitl/{token}/approve")
+async def hitl_approve(token: str, auth=Depends(require_admin)):
+    return _hitl_decide(token, True)
+
+
+@app.post("/api/hitl/{token}/deny")
+async def hitl_deny(token: str, auth=Depends(require_admin)):
+    return _hitl_decide(token, False)
+
+
+def _hitl_decide(token: str, approve: bool):
+    from agentwall.hitl.manager import HITLManager
+    if not HITLManager.instance().decide(token, approve):
+        raise HTTPException(status_code=404, detail="No pending approval with that token")
+    return {"token": token, "status": "APPROVED" if approve else "DENIED"}
 
 @app.post("/intercept/output")
 async def sanitise_output(body: OutputRequest, auth=Depends(require_auth)):

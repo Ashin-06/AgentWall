@@ -55,3 +55,18 @@ For production, it is highly recommended to use `gunicorn` with `uvicorn` worker
 ```bash
 gunicorn agentwall.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 ```
+
+## Human approval (HITL)
+
+Calls to high-risk tools (`delete_db`, `send_payment`, `drop_table`, `sudo_command`, matched as
+substrings of the tool name) that pass every other layer are held: the verdict is `BLOCK` and
+`details.hitl.token` carries an approval token.
+
+1. An admin lists held calls with `GET /api/hitl/pending` and decides with
+   `POST /api/hitl/{token}/approve` or `POST /api/hitl/{token}/deny`. These endpoints need the
+   dashboard login (admin JWT); an agent API key gets 403.
+2. The agent resends the same call with the header `X-AgentWall-Approval-Token: <token>`.
+
+The token only unlocks the exact call it was issued for (same session, agent, tool and
+arguments), works once, and expires after `AGENTWALL_HITL_TTL` seconds (default 3600). Tokens are
+kept in Redis when `REDIS_URL` is set, otherwise in process memory (lost on restart).

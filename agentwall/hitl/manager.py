@@ -1,15 +1,33 @@
 """
-Distributed HITL Manager using Redis.
-Ensures approval tokens are shared across all pods.
+Human-in-the-loop approvals.
+
+A high-risk call that would otherwise be AUDITed is held (BLOCK) with a token. An admin approves or
+denies it through /api/hitl. The agent then resends the same call with the header
+X-AgentWall-Approval-Token. The token is bound to a fingerprint of that exact call (session, agent,
+tool, arguments) and is consumed on use.
+
+Tokens live in Redis when REDIS_URL is set (shared across replicas), otherwise in process memory.
 """
-import uuid
-import os
+import hashlib
 import json
+import os
+import time
+import uuid
+
 try:
     import redis
 except ImportError:
     redis = None
-import time
+
+TTL = int(os.getenv("AGENTWALL_HITL_TTL", "3600"))
+_PREFIX = "hitl:token:"
+
+
+def fingerprint(call: dict) -> str:
+    body = json.dumps([call.get("session_id"), call.get("agent_id"), call.get("tool_name"),
+                       call.get("arguments")], sort_keys=True, default=str)
+    return hashlib.sha256(body.encode()).hexdigest()
+
 
 class HITLManager:
     _instance = None
@@ -22,60 +40,65 @@ class HITLManager:
 
     def __init__(self):
         self.redis_url = os.getenv("REDIS_URL")
-        self._r = None
-        if redis and self.redis_url:
-            self._r = redis.from_url(self.redis_url, decode_responses=True)
-            print(f"[HITLManager] Connected to Redis: {self.redis_url}")
-        elif self.redis_url:
-            print(f"[HITLManager] WARNING: REDIS_URL is set but 'redis' package is not installed. Falling back to local cache.")
-        
+        self._r = redis.from_url(self.redis_url, decode_responses=True) if (redis and self.redis_url) else None
         self.high_risk_tools = ["delete_db", "send_payment", "drop_table", "sudo_command"]
-        self._local_cache = {} # Fallback
+        self._local = {}
 
+    # -- storage -------------------------------------------------------------
+    def _get(self, token):
+        if self._r:
+            raw = self._r.get(_PREFIX + token)
+            return json.loads(raw) if raw else None
+        entry = self._local.get(token)
+        if entry and time.time() - entry["ts"] > TTL:
+            self._local.pop(token, None)
+            return None
+        return entry
+
+    def _put(self, token, entry):
+        if self._r:
+            ttl = max(1, int(TTL - (time.time() - entry["ts"])))
+            self._r.setex(_PREFIX + token, ttl, json.dumps(entry))
+        else:
+            self._local[token] = entry
+
+    def _delete(self, token) -> bool:
+        if self._r:
+            return self._r.delete(_PREFIX + token) == 1  # only one caller wins the delete
+        return self._local.pop(token, None) is not None
+
+    # -- API -----------------------------------------------------------------
     def check_hitl_required(self, call: dict) -> dict:
-        tool_name = call.get("tool_name", "").lower()
-        
-        if any(risk_tool in tool_name for risk_tool in self.high_risk_tools):
-            token = str(uuid.uuid4())
-            hitl_data = {
-                "session_id": call["session_id"],
-                "agent_id": call["agent_id"],
-                "tool_name": tool_name,
-                "ts": time.time(),
-                "status": "PENDING"
-            }
-            
-            if self._r:
-                self._r.setex(f"hitl:token:{token}", 3600, json.dumps(hitl_data))
-            else:
-                self._local_cache[token] = hitl_data
-                
-            return {
-                "requires_hitl": True,
-                "token": token,
-                "reason": f"Tool '{tool_name}' requires human approval."
-            }
-            
-        return {"requires_hitl": False}
+        tool_name = str(call.get("tool_name", "")).lower()
+        if not any(t in tool_name for t in self.high_risk_tools):
+            return {"requires_hitl": False}
+        token = str(uuid.uuid4())
+        self._put(token, {
+            "token": token, "session_id": call.get("session_id"), "agent_id": call.get("agent_id"),
+            "tool_name": tool_name, "arguments": call.get("arguments"), "fingerprint": fingerprint(call),
+            "ts": time.time(), "status": "PENDING",
+        })
+        return {"requires_hitl": True, "token": token,
+                "reason": f"Tool '{tool_name}' requires human approval."}
 
-    def verify_approval(self, token: str) -> bool:
-        """Checks if a token has been approved by a human."""
+    def pending(self) -> list:
         if self._r:
-            data = self._r.get(f"hitl:token:{token}")
-            if data:
-                return json.loads(data).get("status") == "APPROVED"
+            entries = [self._get(k[len(_PREFIX):]) for k in self._r.scan_iter(_PREFIX + "*")]
         else:
-            return self._local_cache.get(token, {}).get("status") == "APPROVED"
-        return False
+            entries = [self._get(t) for t in list(self._local)]
+        return sorted((e for e in entries if e and e["status"] == "PENDING"), key=lambda e: e["ts"])
 
-    def approve_token(self, token: str):
-        """Called by the management API/Dashboard."""
-        if self._r:
-            data = self._r.get(f"hitl:token:{token}")
-            if data:
-                payload = json.loads(data)
-                payload["status"] = "APPROVED"
-                self._r.setex(f"hitl:token:{token}", 3600, json.dumps(payload))
-        else:
-            if token in self._local_cache:
-                self._local_cache[token]["status"] = "APPROVED"
+    def decide(self, token: str, approve: bool) -> bool:
+        entry = self._get(token)
+        if not entry or entry["status"] != "PENDING":
+            return False
+        entry["status"] = "APPROVED" if approve else "DENIED"
+        self._put(token, entry)
+        return True
+
+    def consume(self, token: str, call: dict) -> bool:
+        """True once, for an approved token whose fingerprint matches this exact call."""
+        entry = self._get(token)
+        if not entry or entry["status"] != "APPROVED" or entry["fingerprint"] != fingerprint(call):
+            return False
+        return self._delete(token)
