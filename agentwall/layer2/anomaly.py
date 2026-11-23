@@ -113,6 +113,7 @@ class TemporalAnomalyDetector:
             if tool_name not in vocab:
                 idx = self._r.hlen(f"anomaly:vocab:{agent_id}")
                 self._r.hset(f"anomaly:vocab:{agent_id}", tool_name, idx)
+                self._r.expire(f"anomaly:vocab:{agent_id}", 30 * 86400)  # idle agents age out
                 tool_idx = float(idx)
             else:
                 tool_idx = float(vocab[tool_name])
@@ -128,7 +129,8 @@ class TemporalAnomalyDetector:
             session_age = ts - float(state["start_ts"])
             
             # Update session state in Redis
-            self._r.hset(s_key, mapping={"last_tool": tool_name, "call_count": str(int(call_count) + 1)})
+            self._r.hset(s_key, mapping={"last_tool": tool_name, "call_count": str(int(call_count) + 1),
+                                         "start_ts": state["start_ts"]})  # read back on the next call
             self._r.expire(s_key, 3600)
             
             # Call rates from history stream

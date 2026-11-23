@@ -1,11 +1,15 @@
+# Development server for the dashboard (vite). Production serves dashboard/dist from the main image.
 FROM node:22-alpine
 
+ENV CYPRESS_INSTALL_BINARY=0
 WORKDIR /app
+RUN chown node:node /app
+USER node
 
-COPY package*.json ./
-RUN npm install
+COPY --chown=node:node package*.json ./
+RUN npm ci
 
-COPY . .
+COPY --chown=node:node . .
 
 EXPOSE 3000
 

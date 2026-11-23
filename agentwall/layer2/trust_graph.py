@@ -32,7 +32,7 @@ class TrustGraph:
 
     def __init__(self):
         # Redis implementation for horizontal scaling
-        self.redis_url = os.getenv("REDIS_URL", "redis-cluster.agentwall.svc.cluster.local:6379")
+        self.redis_url = os.getenv("REDIS_URL")
         if self.redis_url:
             try:
                 import redis
@@ -73,7 +73,9 @@ class TrustGraph:
         
         chain = self._get_chain(session_id, agent_id)
         if agent_id not in chain:
-            if self.redis_url: self._r.sadd(f"chain:{session_id}", agent_id)
+            if self.redis_url:
+                self._r.sadd(f"chain:{session_id}", agent_id)
+                self._r.expire(f"chain:{session_id}", 3600)
             else: self._chains[session_id].append(agent_id)
             chain.append(agent_id)
 

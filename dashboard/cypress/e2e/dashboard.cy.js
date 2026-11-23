@@ -1,7 +1,12 @@
-const signIn = (password = Cypress.env("password")) => {
-  cy.visit("/");
-  cy.get("input[type=password]").type(password, { log: false });
-  cy.contains("button", "AUTHORIZE ACCESS").click();
+// cy.env (Cypress 16+) reads values from cypress.config.mjs `env` without exposing them to the page.
+const signIn = (password) => {
+  const type = pw => {
+    cy.visit("/");
+    cy.get("input[type=password]").type(pw, { log: false });
+    cy.contains("button", "AUTHORIZE ACCESS").click();
+  };
+  if (password) type(password);
+  else cy.env(["password"]).then(({ password: pw }) => type(pw));
 };
 
 describe("AgentWall dashboard", () => {
@@ -9,13 +14,15 @@ describe("AgentWall dashboard", () => {
 
   before(() => {
     // Real tool calls through the API: one the policy blocks, one it permits.
-    const call = (call_id, tool_name, args) => cy.request({
-      method: "POST", url: "/intercept",
-      headers: { "X-AgentWall-Key": Cypress.env("apiKey") },
-      body: { session_id: session, agent_id: "e2e-agent", call_id, tool_name, arguments: args },
-    }).its("body");
-    call("c1", "bash", { command: "rm -rf /" }).its("verdict").should("eq", "BLOCK");
-    call("c2", "read_file", { path: "/tmp/notes.md" }).its("verdict").should("not.eq", "BLOCK");
+    cy.env(["apiKey"]).then(({ apiKey }) => {
+      const call = (call_id, tool_name, args) => cy.request({
+        method: "POST", url: "/intercept",
+        headers: { "X-AgentWall-Key": apiKey },
+        body: { session_id: session, agent_id: "e2e-agent", call_id, tool_name, arguments: args },
+      }).its("body");
+      call("c1", "bash", { command: "rm -rf /" }).its("verdict").should("eq", "BLOCK");
+      call("c2", "read_file", { path: "/tmp/notes.md" }).its("verdict").should("not.eq", "BLOCK");
+    });
   });
 
   it("rejects a wrong password", () => {
