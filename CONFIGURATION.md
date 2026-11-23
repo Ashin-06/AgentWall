@@ -55,3 +55,12 @@ For production, it is highly recommended to use `gunicorn` with `uvicorn` worker
 ```bash
 gunicorn agentwall.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 ```
+
+## Metrics and live alerts
+
+- `/metrics` (Prometheus) requires auth like the rest of the API: send one of `AGENTWALL_API_KEYS`
+  as `Authorization: Bearer <key>` or `X-AgentWall-Key`. `config/prometheus.yml` reads it from a
+  credentials file.
+- The live-alert WebSocket (`/ws/intercept`) expects `{"type": "auth", "token": "<jwt or api key>"}`
+  as its first message within 5 seconds, so tokens never appear in URLs or access logs. With
+  `AGENTWALL_AUTH_ENABLED=0` no auth message is needed.

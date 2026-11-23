@@ -116,18 +116,19 @@ final_static_path = dashboard_dist if os.path.exists(dashboard_dist) else os.pat
 print(f"[Dashboard] Serving from: {final_static_path}")
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
-if not os.path.exists(final_static_path):
-    os.makedirs(final_static_path, exist_ok=True)
-    with open(os.path.join(final_static_path, "index.html"), "w") as f:
-        f.write("<html><body><h1>AgentWall Dashboard</h1></body></html>")
 
-app.mount("/assets", StaticFiles(directory=os.path.join(final_static_path, "assets") if os.path.exists(os.path.join(final_static_path, "assets")) else final_static_path), name="assets")
+_assets = os.path.join(final_static_path, "assets")
+if os.path.isdir(_assets):
+    app.mount("/assets", StaticFiles(directory=_assets), name="assets")
 
 @app.get("/")
 async def root():
-    return FileResponse(os.path.join(final_static_path, "index.html"))
+    index = os.path.join(final_static_path, "index.html")
+    if not os.path.exists(index):
+        return HTMLResponse("<html><body><h1>AgentWall</h1><p>Dashboard build not found.</p></body></html>")
+    return FileResponse(index)
 
 @app.get("/health")
 async def health():
@@ -136,21 +137,27 @@ async def health():
 active_connections = set()
 
 @app.websocket("/ws/intercept")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    from agentwall.auth import verify_jwt
-    payload = verify_jwt(token)
-    if payload:
-        await websocket.accept()
-        active_connections.add(websocket)
+async def websocket_endpoint(websocket: WebSocket):
+    """Clients send {"type": "auth", "token": "<jwt or api key>"} first; tokens stay out of URLs and logs."""
+    import agentwall.auth as auth_config
+    await websocket.accept()
+    if auth_config.AUTH_ENABLED:
         try:
-            while True:
-                await websocket.receive_text()
-        except WebSocketDisconnect:
-            active_connections.remove(websocket)
-    else:
-        print(f"[WS] Auth Failed: Invalid token")
-        try: await websocket.close(code=4003)
-        except: pass
+            msg = json.loads(await asyncio.wait_for(websocket.receive_text(), timeout=5))
+            if msg.get("type") != "auth":
+                raise ValueError("first message must be auth")
+            auth_config.require_auth_token(str(msg.get("token", "")))  # raises on a bad token
+        except Exception:
+            await websocket.close(code=4003)
+            return
+    active_connections.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        active_connections.discard(websocket)
 
 ADMIN_PASSWORD = os.getenv("AGENTWALL_ADMIN_PASSWORD") or secrets.token_urlsafe(12)
 if not os.getenv("AGENTWALL_ADMIN_PASSWORD"):
@@ -163,13 +170,14 @@ async def login(req: LoginRequest, request: Request):
     # ponytail: in-process per-IP limit; use a shared store if running several replicas
     ip = request.client.host if request.client else "unknown"
     now = time.time()
-    recent = [t for t in login_attempts[ip] if now - t < 60]
-    login_attempts[ip] = recent
+    for other in [k for k, v in login_attempts.items() if not v or now - v[-1] >= 60]:
+        del login_attempts[other]  # ponytail: O(ips) per login; fine for an admin-only endpoint
+    recent = [t for t in login_attempts.get(ip, []) if now - t < 60]
     if len(recent) >= LOGIN_MAX_FAILURES:
         raise HTTPException(status_code=429, detail="Too many failed logins; try again later")
     if hmac.compare_digest(req.password.encode(), ADMIN_PASSWORD.encode()):
         return {"token": create_jwt({"sub": "admin", "role": "admin"}), "expires_in": JWT_TTL}
-    recent.append(now)
+    login_attempts[ip] = recent + [now]
     raise HTTPException(status_code=401, detail="Invalid password")
 
 @app.post("/intercept")
@@ -234,7 +242,7 @@ async def security_status(auth=Depends(require_auth)):
     }
 
 @app.get("/metrics")
-async def metrics():
+async def metrics(auth=Depends(require_auth)):
     return PlainTextResponse(MetricsRegistry.get().export())
 
 @app.get("/api/performance")
